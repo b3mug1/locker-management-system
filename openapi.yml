@@ -1,0 +1,951 @@
+openapi: "3.1.0"
+
+info:
+  title: Locker Management System
+  description: Full-stack locker management system for students
+  version: "1.0.0"
+
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+
+security:
+  - BearerAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    # ── Auth ──────────────────────────────────────────────────────────────────
+    TokenResponse:
+      type: object
+      required: [access_token, token_type, role, user_id]
+      properties:
+        access_token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        token_type:
+          type: string
+          example: bearer
+        role:
+          type: string
+          enum: [admin, user]
+        user_id:
+          type: integer
+          example: 1
+
+    PasswordChange:
+      type: object
+      required: [current_password, new_password]
+      properties:
+        current_password:
+          type: string
+          example: oldPass123
+        new_password:
+          type: string
+          minLength: 6
+          example: newPass456
+
+    # ── Users ─────────────────────────────────────────────────────────────────
+    UserCreate:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: john.doe@aitu.edu.kz
+        password:
+          type: string
+          example: secret123
+        role:
+          type: string
+          enum: [admin, user]
+          default: user
+        student_id:
+          type: integer
+          nullable: true
+          example: 5
+
+    UserRead:
+      type: object
+      required: [id, email, role]
+      properties:
+        id:
+          type: integer
+          example: 1
+        email:
+          type: string
+          example: john.doe@aitu.edu.kz
+        role:
+          type: string
+          enum: [admin, user]
+        student_id:
+          type: integer
+          nullable: true
+        student_name:
+          type: string
+          nullable: true
+          example: John Doe
+        student_barcode:
+          type: string
+          nullable: true
+          example: "S0001234"
+
+    UserUpdate:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [admin, user]
+        student_id:
+          type: integer
+          nullable: true
+
+    # ── Students ──────────────────────────────────────────────────────────────
+    StudentCreate:
+      type: object
+      required: [full_name, group, barcode, course]
+      properties:
+        full_name:
+          type: string
+          example: Jane Smith
+        group:
+          type: string
+          example: CS-2201
+        barcode:
+          type: string
+          example: "S0009876"
+        course:
+          type: integer
+          minimum: 1
+          maximum: 6
+          example: 2
+
+    StudentRead:
+      type: object
+      required: [id, full_name, group, barcode, course]
+      properties:
+        id:
+          type: integer
+          example: 1
+        full_name:
+          type: string
+          example: Jane Smith
+        group:
+          type: string
+          example: CS-2201
+        barcode:
+          type: string
+          example: "S0009876"
+        course:
+          type: integer
+          example: 2
+
+    StudentUpdate:
+      type: object
+      properties:
+        full_name:
+          type: string
+        group:
+          type: string
+        barcode:
+          type: string
+        course:
+          type: integer
+
+    # ── Lockers ───────────────────────────────────────────────────────────────
+    LockerCreate:
+      type: object
+      required: [number]
+      properties:
+        number:
+          type: string
+          example: "A-101"
+        size:
+          type: string
+          enum: [small, medium, large]
+          default: medium
+        access_type:
+          type: string
+          enum: [pin, key]
+          default: key
+        capacity:
+          type: integer
+          minimum: 1
+          maximum: 2
+          default: 1
+        floor:
+          type: integer
+          default: 1
+          example: 3
+        status:
+          type: string
+          enum: [active, inactive, maintenance]
+          default: active
+
+    LockerRead:
+      type: object
+      required: [id, number, size, access_type, capacity, floor, status, occupied_count]
+      properties:
+        id:
+          type: integer
+          example: 1
+        number:
+          type: string
+          example: "A-101"
+        size:
+          type: string
+          enum: [small, medium, large]
+        access_type:
+          type: string
+          enum: [pin, key]
+        capacity:
+          type: integer
+          example: 2
+        floor:
+          type: integer
+          example: 3
+        status:
+          type: string
+          enum: [active, inactive, maintenance]
+        occupied_count:
+          type: integer
+          example: 1
+
+    LockerUpdate:
+      type: object
+      properties:
+        number:
+          type: string
+        size:
+          type: string
+          enum: [small, medium, large]
+        access_type:
+          type: string
+          enum: [pin, key]
+        capacity:
+          type: integer
+        floor:
+          type: integer
+        status:
+          type: string
+          enum: [active, inactive, maintenance]
+
+    # ── Assignments ───────────────────────────────────────────────────────────
+    AssignmentCreate:
+      type: object
+      required: [student_id, locker_id]
+      properties:
+        student_id:
+          type: integer
+          example: 3
+        locker_id:
+          type: integer
+          example: 7
+
+    AssignmentRead:
+      type: object
+      required: [id, student_id, locker_id, assigned_at]
+      properties:
+        id:
+          type: integer
+          example: 1
+        student_id:
+          type: integer
+          example: 3
+        locker_id:
+          type: integer
+          example: 7
+        assigned_at:
+          type: string
+          format: date-time
+          example: "2026-04-06T10:30:00Z"
+        released_at:
+          type: string
+          format: date-time
+          nullable: true
+        student_name:
+          type: string
+          nullable: true
+          example: Jane Smith
+        locker_number:
+          type: string
+          nullable: true
+          example: "A-101"
+
+    # ── Dashboard ─────────────────────────────────────────────────────────────
+    CountResponse:
+      type: object
+      required: [count]
+      properties:
+        count:
+          type: integer
+
+    Error:
+      type: object
+      required: [detail]
+      properties:
+        detail:
+          type: string
+          example: Not found
+
+paths:
+  # ============================================================
+  # Authentication
+  # ============================================================
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: Login and receive a JWT token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username:
+                  type: string
+                  description: User email address
+                  example: admin@example.com
+                password:
+                  type: string
+                  example: admin123
+      responses:
+        "200":
+          description: Successful login
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenResponse"
+        "401":
+          description: Incorrect email or password
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/change-password:
+    post:
+      tags: [Authentication]
+      summary: Change the current user's password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordChange"
+      responses:
+        "200":
+          description: Password changed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Password changed successfully
+        "400":
+          description: Validation error (wrong current password or too short)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+
+  # ============================================================
+  # Users  (admin only)
+  # ============================================================
+  /users/:
+    get:
+      tags: [Users]
+      summary: List all users
+      responses:
+        "200":
+          description: Array of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserRead"
+        "403":
+          description: Forbidden
+
+    post:
+      tags: [Users]
+      summary: Create a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserCreate"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/UserRead"
+                  - type: object
+                    properties:
+                      email_sent:
+                        type: boolean
+        "400":
+          description: Email already registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /users/{user_id}:
+    parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        example: 1
+
+    get:
+      tags: [Users]
+      summary: Get a user by ID
+      responses:
+        "200":
+          description: User found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserRead"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    put:
+      tags: [Users]
+      summary: Update a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdate"
+      responses:
+        "200":
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserRead"
+        "404":
+          description: User not found
+
+    delete:
+      tags: [Users]
+      summary: Delete a user
+      responses:
+        "204":
+          description: User deleted
+        "404":
+          description: User not found
+
+  # ============================================================
+  # Students  (admin only)
+  # ============================================================
+  /students/:
+    get:
+      tags: [Students]
+      summary: List all students
+      parameters:
+        - name: skip
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+            maximum: 500
+      responses:
+        "200":
+          description: Array of students
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StudentRead"
+
+    post:
+      tags: [Students]
+      summary: Create a new student
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudentCreate"
+      responses:
+        "201":
+          description: Student created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudentRead"
+
+  /students/count:
+    get:
+      tags: [Students]
+      summary: Get total student count
+      responses:
+        "200":
+          description: Count
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CountResponse"
+
+  /students/import-csv:
+    post:
+      tags: [Students]
+      summary: Bulk-import students from a CSV file
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: Import result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  imported:
+                    type: integer
+                  skipped:
+                    type: integer
+        "400":
+          description: Only CSV files are accepted
+
+  /students/{student_id}:
+    parameters:
+      - name: student_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        example: 1
+
+    get:
+      tags: [Students]
+      summary: Get a student by ID
+      responses:
+        "200":
+          description: Student found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudentRead"
+        "404":
+          description: Student not found
+
+    put:
+      tags: [Students]
+      summary: Update a student
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudentUpdate"
+      responses:
+        "200":
+          description: Student updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudentRead"
+        "404":
+          description: Student not found
+
+    delete:
+      tags: [Students]
+      summary: Delete a student
+      responses:
+        "204":
+          description: Student deleted
+        "404":
+          description: Student not found
+
+  # ============================================================
+  # Lockers  (admin only)
+  # ============================================================
+  /lockers/:
+    get:
+      tags: [Lockers]
+      summary: List all lockers
+      parameters:
+        - name: skip
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+            maximum: 500
+      responses:
+        "200":
+          description: Array of lockers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LockerRead"
+
+    post:
+      tags: [Lockers]
+      summary: Create a new locker
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LockerCreate"
+            examples:
+              medium_key:
+                summary: Medium locker with key access
+                value:
+                  number: "A-101"
+                  size: medium
+                  access_type: key
+                  capacity: 2
+                  floor: 3
+                  status: active
+              large_pin:
+                summary: Large locker with PIN access
+                value:
+                  number: "B-201"
+                  size: large
+                  access_type: pin
+                  capacity: 1
+                  floor: 2
+                  status: active
+      responses:
+        "201":
+          description: Locker created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LockerRead"
+        "400":
+          description: Locker number already exists or invalid config
+
+  /lockers/count:
+    get:
+      tags: [Lockers]
+      summary: Get total locker count
+      responses:
+        "200":
+          description: Count
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CountResponse"
+
+  /lockers/{locker_id}:
+    parameters:
+      - name: locker_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        example: 1
+
+    get:
+      tags: [Lockers]
+      summary: Get a locker by ID
+      responses:
+        "200":
+          description: Locker found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LockerRead"
+        "404":
+          description: Locker not found
+
+    put:
+      tags: [Lockers]
+      summary: Update a locker
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LockerUpdate"
+      responses:
+        "200":
+          description: Locker updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LockerRead"
+        "404":
+          description: Locker not found
+
+    delete:
+      tags: [Lockers]
+      summary: Delete a locker
+      responses:
+        "204":
+          description: Locker deleted
+        "404":
+          description: Locker not found
+
+  # ============================================================
+  # Assignments  (admin + current user)
+  # ============================================================
+  /assignments/:
+    get:
+      tags: [Assignments]
+      summary: List all assignments (admin)
+      parameters:
+        - name: skip
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 200
+            maximum: 1000
+      responses:
+        "200":
+          description: Array of assignments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AssignmentRead"
+
+    post:
+      tags: [Assignments]
+      summary: Assign a locker to a student (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignmentCreate"
+      responses:
+        "201":
+          description: Assignment created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssignmentRead"
+        "400":
+          description: Business rule violation (locker full, student already assigned, etc.)
+
+  /assignments/my:
+    get:
+      tags: [Assignments]
+      summary: Get assignments for the currently authenticated user
+      responses:
+        "200":
+          description: Array of assignments belonging to the current user
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AssignmentRead"
+
+  /assignments/my-dashboard:
+    get:
+      tags: [Assignments]
+      summary: Rich user dashboard (student profile + active locker + history)
+      responses:
+        "200":
+          description: Dashboard data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  email:
+                    type: string
+                  role:
+                    type: string
+                  student:
+                    type: object
+                    nullable: true
+                    properties:
+                      id:
+                        type: integer
+                      full_name:
+                        type: string
+                      group:
+                        type: string
+                      barcode:
+                        type: string
+                      course:
+                        type: integer
+                  active_locker:
+                    type: object
+                    nullable: true
+                    properties:
+                      number:
+                        type: string
+                      floor:
+                        type: integer
+                      size:
+                        type: string
+                      access_type:
+                        type: string
+                      capacity:
+                        type: integer
+                      occupied:
+                        type: integer
+                      assigned_at:
+                        type: string
+                        format: date-time
+                  assignments:
+                    type: array
+                    items:
+                      type: object
+                  total_assignments:
+                    type: integer
+                  active_count:
+                    type: integer
+
+  /assignments/active-count:
+    get:
+      tags: [Assignments]
+      summary: Count active (unreleased) assignments (admin)
+      responses:
+        "200":
+          description: Count
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CountResponse"
+
+  /assignments/{assignment_id}/release:
+    post:
+      tags: [Assignments]
+      summary: Release (end) an assignment (admin)
+      parameters:
+        - name: assignment_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        "200":
+          description: Assignment released
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssignmentRead"
+        "404":
+          description: Assignment not found
+
+  # ============================================================
+  # Dashboard  (admin only)
+  # ============================================================
+  /dashboard/stats:
+    get:
+      tags: [Dashboard]
+      summary: Aggregated system statistics
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  students_count:
+                    type: integer
+                  lockers_count:
+                    type: integer
+                  users_count:
+                    type: integer
+                  active_lockers:
+                    type: integer
+                  active_assignments:
+                    type: integer
+                  total_assignments:
+                    type: integer
+                  total_capacity:
+                    type: integer
+                  available_spots:
+                    type: integer
+                  occupancy_rate:
+                    type: number
+                    format: float
+                  occupied_lockers:
+                    type: integer
+                  floor_breakdown:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        floor:
+                          type: integer
+                        total:
+                          type: integer
+                        capacity:
+                          type: integer
+                        occupied:
+                          type: integer
+
+tags:
+  - name: Authentication
+    description: Login and password management
+  - name: Users
+    description: User account management (admin only)
+  - name: Students
+    description: Student record management (admin only)
+  - name: Lockers
+    description: Locker inventory management (admin only)
+  - name: Assignments
+    description: Locker-to-student assignment management
+  - name: Dashboard
+    description: Aggregated statistics (admin only)
