@@ -36,9 +36,13 @@ class Settings(BaseSettings):
     FIRST_ADMIN_EMAIL: str = "admin@locker.com"
     FIRST_ADMIN_PASSWORD: str = "admin123"
 
-    # Resend
-    RESEND_API_KEY: str = "re_PcL2PqA3_tMwFAikFxXLx5NorRjxUYAVg"
-    RESEND_FROM_EMAIL: str = "onboarding@resend.dev"
+    # SMTP (standard-library smtplib — no extra packages)
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""        # e.g. yourapp@gmail.com
+    SMTP_PASS: str = ""        # Gmail App Password (not your real password)
+    SMTP_FROM: str = ""        # defaults to SMTP_USER if empty
+    SMTP_USE_TLS: bool = True  # True = STARTTLS on port 587; False = plain
 
     @property
     def cors_origins(self) -> List[str]:
