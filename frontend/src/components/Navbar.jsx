@@ -24,7 +24,7 @@ function Navbar() {
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate('/welcome');
   };
 
   const navClass = ({ isActive }) => isActive ? 'active-link' : '';
@@ -32,7 +32,7 @@ function Navbar() {
   return (
     <nav className="navbar">
       <div className="navbar-brand">
-        <Link to="/">
+        <Link to="/dashboard">
           <img src="/logo.jpeg" alt="Logo" className="navbar-logo" />
           <span className="brand-text">{t('nav_brand')}</span>
         </Link>
@@ -47,7 +47,7 @@ function Navbar() {
       <div className={`navbar-links ${mobileOpen ? 'mobile-open' : ''}`}>
         {user?.role === 'admin' && (
           <>
-            <NavLink to="/" end className={navClass} onClick={() => setMobileOpen(false)}>{t('nav_dashboard')}</NavLink>
+            <NavLink to="/dashboard" end className={navClass} onClick={() => setMobileOpen(false)}>{t('nav_dashboard')}</NavLink>
             <NavLink to="/users" className={navClass} onClick={() => setMobileOpen(false)}>{t('nav_users')}</NavLink>
             <NavLink to="/students" className={navClass} onClick={() => setMobileOpen(false)}>{t('nav_students')}</NavLink>
             <NavLink to="/lockers" className={navClass} onClick={() => setMobileOpen(false)}>{t('nav_lockers')}</NavLink>

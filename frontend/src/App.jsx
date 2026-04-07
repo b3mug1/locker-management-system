@@ -4,6 +4,7 @@ import { useAuth } from './context/AuthContext';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import LoginPage from './pages/LoginPage';
+import WelcomePage from './pages/WelcomePage';
 import AdminDashboard from './pages/AdminDashboard';
 import UsersPage from './pages/UsersPage';
 import StudentsPage from './pages/StudentsPage';
@@ -17,16 +18,16 @@ function App() {
 
   return (
     <Routes>
-      <Route path="/login" element={!user ? <LoginPage /> : <Navigate to="/" />} />
+      {/* Public routes */}
+      <Route path="/welcome" element={<WelcomePage />} />
+      <Route path="/login" element={!user ? <LoginPage /> : <Navigate to="/dashboard" />} />
 
+      {/* Protected routes */}
       <Route element={<ProtectedRoute />}>
         <Route element={<Layout />}>
-          {/* Admin routes */}
           <Route
-            path="/"
-            element={
-              user?.role === 'admin' ? <AdminDashboard /> : <UserDashboard />
-            }
+            path="/dashboard"
+            element={user?.role === 'admin' ? <AdminDashboard /> : <UserDashboard />}
           />
           <Route path="/users" element={<ProtectedRoute requiredRole="admin"><UsersPage /></ProtectedRoute>} />
           <Route path="/students" element={<ProtectedRoute requiredRole="admin"><StudentsPage /></ProtectedRoute>} />
@@ -37,6 +38,8 @@ function App() {
         </Route>
       </Route>
 
+      {/* Root: welcome for guests, dashboard for logged-in */}
+      <Route path="/" element={user ? <Navigate to="/dashboard" /> : <Navigate to="/welcome" />} />
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
   );

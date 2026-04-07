@@ -3266,3 +3266,440 @@ td .btn + .btn {
     font-size: 1.5rem;
   }
 }
+/* ===========================
+   Welcome / Landing Page
+   =========================== */
+
+/* ── Page wrapper ──────────────────────────────────── */
+.welcome-page {
+  min-height: 100vh;
+  background: var(--body-bg);
+  color: var(--gray-900);
+  font-family: var(--font-sans);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Top bar ───────────────────────────────────────── */
+.welcome-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.875rem 2rem;
+  background: var(--nav-bg);
+  border-bottom: 1px solid var(--card-border);
+  backdrop-filter: blur(10px);
+}
+
+.welcome-topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--nav-text-active);
+}
+
+.welcome-topbar-logo {
+  height: 32px;
+  width: auto;
+  object-fit: contain;
+}
+
+.welcome-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+/* ── Hero ──────────────────────────────────────────── */
+.welcome-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 3rem;
+  padding: 5rem 2rem 4rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.welcome-hero-content {
+  flex: 1;
+  max-width: 560px;
+}
+
+.welcome-hero-badge {
+  display: inline-block;
+  background: rgba(37, 99, 235, 0.12);
+  color: var(--primary);
+  border: 1px solid rgba(37, 99, 235, 0.25);
+  border-radius: var(--radius-full);
+  padding: 0.3rem 0.875rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  margin-bottom: 1.25rem;
+}
+
+.welcome-hero-title {
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 800;
+  line-height: 1.15;
+  color: var(--gray-900);
+  margin-bottom: 1rem;
+}
+
+.welcome-hero-subtitle {
+  font-size: 1.0625rem;
+  color: var(--gray-500);
+  line-height: 1.7;
+  margin-bottom: 2rem;
+}
+
+.welcome-hero-actions {
+  display: flex;
+  gap: 0.875rem;
+  flex-wrap: wrap;
+}
+
+/* ── Hero visual: locker grid ──────────────────────── */
+.welcome-hero-visual {
+  flex-shrink: 0;
+}
+
+.welcome-hero-locker-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 80px);
+  grid-template-rows: repeat(3, 80px);
+  gap: 0.625rem;
+}
+
+.welcome-locker-cell {
+  background: var(--gray-100);
+  border: 1.5px solid var(--card-border);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gray-400);
+  transition: all 0.3s ease;
+}
+
+.welcome-locker-cell.occupied {
+  background: rgba(37, 99, 235, 0.12);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.welcome-locker-cell:hover {
+  transform: scale(1.05);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* ── Stats strip ───────────────────────────────────── */
+.welcome-stats {
+  background: var(--gray-100);
+  border-top: 1px solid var(--card-border);
+  border-bottom: 1px solid var(--card-border);
+}
+
+.welcome-stats-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.welcome-stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  flex: 1;
+}
+
+.welcome-stat-number {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--primary);
+}
+
+.welcome-stat-label {
+  font-size: 0.8125rem;
+  color: var(--gray-500);
+  font-weight: 500;
+}
+
+.welcome-stat-divider {
+  width: 1px;
+  height: 40px;
+  background: var(--card-border);
+}
+
+/* ── Shared section header ─────────────────────────── */
+.welcome-section-header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.welcome-section-header h2 {
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 800;
+  color: var(--gray-900);
+  margin-bottom: 0.5rem;
+}
+
+.welcome-section-header p {
+  color: var(--gray-500);
+  font-size: 1rem;
+}
+
+/* ── Features ──────────────────────────────────────── */
+.welcome-features {
+  padding: 5rem 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.welcome-features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1.25rem;
+}
+
+.welcome-feature-card {
+  background: var(--gray-100);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  padding: 1.75rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.welcome-feature-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+  border-color: rgba(37, 99, 235, 0.3);
+}
+
+.welcome-feature-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.125rem;
+}
+
+.welcome-feature-card h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--gray-900);
+  margin-bottom: 0.5rem;
+}
+
+.welcome-feature-card p {
+  font-size: 0.875rem;
+  color: var(--gray-500);
+  line-height: 1.6;
+}
+
+/* ── Gallery / image cards ─────────────────────────── */
+.welcome-gallery {
+  padding: 5rem 2rem;
+  background: var(--gray-100);
+  border-top: 1px solid var(--card-border);
+  border-bottom: 1px solid var(--card-border);
+}
+
+.welcome-gallery > .welcome-section-header,
+.welcome-gallery > .welcome-gallery-grid {
+  max-width: 1000px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.welcome-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.welcome-gallery-card {
+  background: var(--white);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.welcome-gallery-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+}
+
+.welcome-gallery-media {
+  width: 100%;
+  height: 200px;
+  background: var(--gray-200);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.welcome-gallery-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 1.5rem;
+}
+
+.welcome-gallery-icon {
+  color: var(--primary);
+  opacity: 0.6;
+}
+
+.welcome-gallery-caption {
+  padding: 1rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--gray-700);
+  border-top: 1px solid var(--card-border);
+  text-align: center;
+}
+
+/* ── How it works ──────────────────────────────────── */
+.welcome-how {
+  padding: 5rem 2rem;
+  max-width: 1000px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.welcome-how-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 1.5rem;
+  counter-reset: step;
+}
+
+.welcome-how-step {
+  text-align: center;
+  padding: 2rem 1.5rem;
+  background: var(--gray-100);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  position: relative;
+}
+
+.welcome-step-number {
+  width: 44px;
+  height: 44px;
+  background: var(--primary);
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.125rem;
+  font-weight: 800;
+  margin: 0 auto 1rem;
+}
+
+.welcome-how-step h4 {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--gray-900);
+  margin-bottom: 0.5rem;
+}
+
+.welcome-how-step p {
+  font-size: 0.8125rem;
+  color: var(--gray-500);
+  line-height: 1.6;
+}
+
+/* ── CTA ───────────────────────────────────────────── */
+.welcome-cta {
+  text-align: center;
+  padding: 5rem 2rem;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, rgba(124, 58, 237, 0.08) 100%);
+  border-top: 1px solid rgba(37, 99, 235, 0.15);
+}
+
+.welcome-cta h2 {
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 800;
+  color: var(--gray-900);
+  margin-bottom: 0.75rem;
+}
+
+.welcome-cta p {
+  color: var(--gray-500);
+  margin-bottom: 2rem;
+  font-size: 1rem;
+}
+
+/* ── Footer ────────────────────────────────────────── */
+.welcome-footer {
+  text-align: center;
+  padding: 1.5rem 2rem;
+  background: var(--nav-bg);
+  border-top: 1px solid var(--card-border);
+  color: var(--gray-500);
+  font-size: 0.8125rem;
+}
+
+/* ── Responsive ────────────────────────────────────── */
+@media (max-width: 768px) {
+  .welcome-hero {
+    flex-direction: column;
+    padding: 3rem 1.25rem 2.5rem;
+    text-align: center;
+  }
+
+  .welcome-hero-actions {
+    justify-content: center;
+  }
+
+  .welcome-hero-visual {
+    display: none;
+  }
+
+  .welcome-stats-inner {
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    padding: 1.5rem;
+  }
+
+  .welcome-stat-divider {
+    display: none;
+  }
+
+  .welcome-topbar {
+    padding: 0.75rem 1rem;
+  }
+
+  .welcome-topbar-brand span {
+    display: none;
+  }
+
+  .welcome-features,
+  .welcome-gallery,
+  .welcome-how {
+    padding: 3rem 1.25rem;
+  }
+}
