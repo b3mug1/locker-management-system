@@ -11,7 +11,7 @@ function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { loginUser } = useAuth();
-  const { lang, switchLang, t } = useLanguage();
+  const { t } = useLanguage();
   const navigate = useNavigate();
 
   const [theme, setTheme] = useState(() => {
@@ -46,13 +46,6 @@ function LoginPage() {
   return (
     <div className="login-container">
       <div className="login-top-controls">
-        <button
-          className="lang-toggle"
-          onClick={() => switchLang(lang === 'en' ? 'ru' : 'en')}
-          title={lang === 'en' ? 'Русский' : 'English'}
-        >
-          {lang === 'en' ? '🇷🇺' : '🇬🇧'}
-        </button>
         <button
           className="theme-toggle login-theme-toggle"
           onClick={toggleTheme}
