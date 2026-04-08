@@ -17,9 +17,11 @@ class StudentService:
 
     async def get_all(self, skip: int = 0, limit: int = 100) -> list[Student]:
         result = await self.db.execute(
-            select(Student).order_by(Student.id).offset(skip).limit(limit)
+            select(Student).offset(skip).limit(limit)
         )
-        return list(result.scalars().all())
+        students = list(result.scalars().all())
+        # Priority students (any inclusive status != "none") appear first
+        return sorted(students, key=lambda s: (0 if s.inclusive_status != "none" else 1, s.id))
 
     async def count(self) -> int:
         from sqlalchemy import func
@@ -27,7 +29,13 @@ class StudentService:
         return result.scalar_one()
 
     async def create(self, data: StudentCreate) -> Student:
-        student = Student(full_name=data.full_name, group=data.group, barcode=data.barcode, course=data.course)
+        student = Student(
+            full_name=data.full_name,
+            group=data.group,
+            barcode=data.barcode,
+            course=data.course,
+            inclusive_status=data.inclusive_status,
+        )
         self.db.add(student)
         await self.db.commit()
         await self.db.refresh(student)

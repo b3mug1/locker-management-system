@@ -14,6 +14,8 @@ class Student(Base):
     group: Mapped[str] = mapped_column(String(100), nullable=False)
     barcode: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     course: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    # Inclusive / priority status — none | disability | orphan | vision | hearing | other
+    inclusive_status: Mapped[str] = mapped_column(String(50), nullable=False, default="none")
 
     assignments = relationship("Assignment", back_populates="student", lazy="selectin", cascade="all, delete-orphan", passive_deletes=True)
     user = relationship("User", back_populates="student", uselist=False, lazy="selectin")

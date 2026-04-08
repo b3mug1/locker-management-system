@@ -8,6 +8,7 @@ from pydantic import BaseModel
 class AssignmentCreate(BaseModel):
     student_id: int
     locker_id: int
+    force: bool = False  # override priority warning
 
 
 class AssignmentRead(BaseModel):

@@ -139,6 +139,26 @@ class AssignmentService:
                 detail=f"Locker is at full capacity ({locker.capacity})",
             )
 
+        # Priority check: if the student being assigned has no inclusive status,
+        # warn admin if there are priority (inclusive) students still without a locker.
+        if student.inclusive_status == "none" and not data.force:
+            unassigned_priority_result = await self.db.execute(
+                select(func.count(Student.id)).where(
+                    Student.inclusive_status != "none",
+                    ~Student.id.in_(
+                        select(Assignment.student_id).where(Assignment.released_at.is_(None))
+                    ),
+                )
+            )
+            unassigned_priority_count = unassigned_priority_result.scalar_one()
+            if unassigned_priority_count > 0:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=(
+                        f"priority_students_waiting:{unassigned_priority_count}"
+                    ),
+                )
+
         assignment = Assignment(
             student_id=data.student_id,
             locker_id=data.locker_id,

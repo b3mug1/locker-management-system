@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel
+
+INCLUSIVE_STATUSES = Literal["none", "disability", "orphan", "vision", "hearing", "other"]
 
 
 class StudentCreate(BaseModel):
@@ -8,6 +12,7 @@ class StudentCreate(BaseModel):
     group: str
     barcode: str
     course: int
+    inclusive_status: INCLUSIVE_STATUSES = "none"
 
 
 class StudentRead(BaseModel):
@@ -16,6 +21,7 @@ class StudentRead(BaseModel):
     group: str
     barcode: str
     course: int
+    inclusive_status: str = "none"
 
     model_config = {"from_attributes": True}
 
@@ -25,3 +31,4 @@ class StudentUpdate(BaseModel):
     group: str | None = None
     barcode: str | None = None
     course: int | None = None
+    inclusive_status: INCLUSIVE_STATUSES | None = None
