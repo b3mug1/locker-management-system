@@ -1719,8 +1719,8 @@ a:hover {
   cursor: pointer;
   transition: all var(--transition);
   box-shadow: var(--shadow-xs);
-  appearance: none;
   -webkit-appearance: none;
+  appearance: none;
 }
 
 .filter-select:hover {
@@ -1738,8 +1738,8 @@ a:hover {
    =========================== */
 th.sortable {
   cursor: pointer;
-  user-select: none;
   -webkit-user-select: none;
+  user-select: none;
   white-space: nowrap;
   transition: color var(--transition);
 }
@@ -2732,7 +2732,6 @@ td .btn + .btn {
 
   .table-container {
     overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
   }
 
   .table-container table {
@@ -3165,7 +3164,7 @@ td .btn + .btn {
 .lp-page { min-height:100vh; background:var(--body-bg); color:var(--gray-900); font-family:var(--font-sans); display:flex; flex-direction:column; }
 
 /* -- Navbar --------------------------------------- */
-.lp-nav { position:sticky; top:0; z-index:100; border-bottom:1px solid var(--card-border); background:color-mix(in srgb, var(--body-bg) 80%, transparent); backdrop-filter:blur(14px); }
+.lp-nav { position:sticky; top:0; z-index:100; border-bottom:1px solid var(--card-border); background:color-mix(in srgb, var(--body-bg) 80%, transparent); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); }
 .lp-nav-inner { max-width:1140px; margin:0 auto; padding:0 1.5rem; height:58px; display:flex; align-items:center; justify-content:space-between; }
 .lp-nav-brand { display:flex; align-items:center; gap:.625rem; font-weight:700; font-size:.9375rem; color:var(--gray-900); }
 .lp-nav-logo { height:30px; width:auto; object-fit:contain; }
