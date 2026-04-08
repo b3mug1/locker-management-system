@@ -62,12 +62,28 @@ function AssignmentsPage() {
   const paginated = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   useEffect(() => { setCurrentPage(1); }, [search, pageSize, filterStatus]);
 
-  const handleAssign = async (e) => {
-    e.preventDefault(); setError(''); setSuccess('');
+  const handleAssign = async (e, force = false) => {
+    if (e) e.preventDefault();
+    setError(''); setSuccess('');
     try {
-      await assignLocker({ student_id: Number(form.student_id), locker_id: Number(form.locker_id) });
+      await assignLocker({ student_id: Number(form.student_id), locker_id: Number(form.locker_id), force });
       setSuccess(t('assign_success')); setForm({ student_id: '', locker_id: '' }); setShowForm(false); fetchAll();
-    } catch (err) { setError(err.response?.data?.detail || t('assign_failed')); }
+    } catch (err) {
+      const detail = err.response?.data?.detail || '';
+      if (err.response?.status === 409 && typeof detail === 'string' && detail.startsWith('priority_students_waiting:')) {
+        const count = detail.split(':')[1];
+        setConfirmModal({
+          open: true,
+          title: t('assign_priority_override_title'),
+          message: t('assign_priority_warning').replace('{count}', count),
+          variant: 'warning',
+          confirmText: t('assign_assign_anyway'),
+          onConfirm: () => { setConfirmModal(m => ({ ...m, open: false })); handleAssign(null, true); },
+        });
+      } else {
+        setError(detail || t('assign_failed'));
+      }
+    }
   };
 
   const handleRelease = async (id) => {
@@ -103,7 +119,7 @@ function AssignmentsPage() {
       <div className="page-header">
         <h1>{t('assign_title')}</h1>
         <div className="page-header-actions">
-          <button className="btn btn-outline" onClick={() => csvInputRef.current?.click()}>&#128228; {t('csv_combined_import')}</button>
+          <button className="btn btn-outline" onClick={() => csvInputRef.current?.click()}>{t('csv_combined_import')}</button>
           <input type="file" accept=".csv" ref={csvInputRef} style={{ display: 'none' }} onChange={handleCSVImport} />
           <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
             {showForm ? t('btn_cancel') : t('assign_add')}
@@ -129,7 +145,11 @@ function AssignmentsPage() {
                 <label>{t('assign_student')}</label>
                 <select value={form.student_id} onChange={(e) => setForm({ ...form, student_id: e.target.value })} required>
                   <option value="">{t('assign_select_student')}</option>
-                  {students.map((s) => (<option key={s.id} value={s.id}>{s.full_name} ({s.group})</option>))}
+                  {students.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.inclusive_status && s.inclusive_status !== 'none' ? '⭐ ' : ''}{s.full_name} ({s.group})
+                    </option>
+                  ))}
                 </select>
               </div>
               <div className="form-group">
@@ -175,7 +195,9 @@ function AssignmentsPage() {
             {paginated.map((a, index) => (
               <tr key={a.id} className={a.released_at ? 'row-released' : ''}>
                 <td>{(currentPage - 1) * pageSize + index + 1}</td>
-                <td>{a.student_name || `#${a.student_id}`}</td>
+                <td>
+                  {(() => { const st = students.find(s => s.id === a.student_id); return st?.inclusive_status && st.inclusive_status !== 'none' ? <span>⭐ {a.student_name || `#${a.student_id}`}</span> : (a.student_name || `#${a.student_id}`); })()}
+                </td>
                 <td><strong>{a.locker_number || `#${a.locker_id}`}</strong></td>
                 <td>{formatDate(a.assigned_at)}</td>
                 <td>{formatDate(a.released_at)}</td>

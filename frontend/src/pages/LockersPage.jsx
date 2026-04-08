@@ -136,7 +136,7 @@ function LockersPage() {
         <h1>{t('lockers_title')}</h1>
         <div className="page-header-actions">
           {selectedIds.size > 0 && <button className="btn btn-danger bulk-delete-btn" onClick={handleBulkDelete}>&#128465; {t('lockers_delete_selected', { count: selectedIds.size })}</button>}
-          <button className="btn btn-outline" onClick={() => fileInputRef.current?.click()}>&#128228; {t('lockers_import_csv')}</button>
+          <button className="btn btn-outline" onClick={() => fileInputRef.current?.click()}>{t('lockers_import_csv')}</button>
           <input type="file" accept=".csv" ref={fileInputRef} style={{ display: 'none' }} onChange={handleCSVImport} />
           <button className="btn btn-primary" onClick={() => { setShowForm(!showForm); setEditingId(null); setForm({ number: '', size: 'medium', access_type: 'key', capacity: 2, floor: 1, status: 'active' }); }}>
             {showForm ? t('btn_cancel') : t('lockers_add')}

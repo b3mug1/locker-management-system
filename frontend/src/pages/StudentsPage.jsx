@@ -10,7 +10,7 @@ function StudentsPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [form, setForm] = useState({ full_name: '', group: '', barcode: '', course: 1 });
+  const [form, setForm] = useState({ full_name: '', group: '', barcode: '', course: 1, inclusive_status: 'none' });
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [selectedIds, setSelectedIds] = useState(new Set());
@@ -22,6 +22,7 @@ function StudentsPage() {
 
   const [filterGroup, setFilterGroup] = useState('');
   const [filterCourse, setFilterCourse] = useState('');
+  const [filterInclusive, setFilterInclusive] = useState('');
   const [sortCol, setSortCol] = useState('');
   const [sortDir, setSortDir] = useState('asc');
 
@@ -54,6 +55,8 @@ function StudentsPage() {
     }
     if (filterGroup) data = data.filter(s => s.group === filterGroup);
     if (filterCourse) data = data.filter(s => String(s.course) === filterCourse);
+    if (filterInclusive === 'priority') data = data.filter(s => s.inclusive_status && s.inclusive_status !== 'none');
+    if (filterInclusive && filterInclusive !== 'priority') data = data.filter(s => s.inclusive_status === filterInclusive);
     if (sortCol) {
       data = [...data].sort((a, b) => {
         let va = a[sortCol], vb = b[sortCol];
@@ -63,9 +66,16 @@ function StudentsPage() {
         if (va > vb) return sortDir === 'asc' ? 1 : -1;
         return 0;
       });
+    } else {
+      // default: priority students first
+      data = [...data].sort((a, b) => {
+        const pa = a.inclusive_status && a.inclusive_status !== 'none' ? 0 : 1;
+        const pb = b.inclusive_status && b.inclusive_status !== 'none' ? 0 : 1;
+        return pa - pb;
+      });
     }
     return data;
-  }, [students, search, filterGroup, filterCourse, sortCol, sortDir]);
+  }, [students, search, filterGroup, filterCourse, filterInclusive, sortCol, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const paginated = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
@@ -97,11 +107,11 @@ function StudentsPage() {
     try {
       if (editingId) { await updateStudent(editingId, form); }
       else { await createStudent(form); }
-      setForm({ full_name: '', group: '', barcode: '', course: 1 }); setShowForm(false); setEditingId(null); fetchStudents();
+      setForm({ full_name: '', group: '', barcode: '', course: 1, inclusive_status: 'none' }); setShowForm(false); setEditingId(null); fetchStudents();
     } catch (err) { setError(err.response?.data?.detail || t('students_op_failed')); }
   };
 
-  const handleEdit = (s) => { setForm({ full_name: s.full_name, group: s.group, barcode: s.barcode, course: s.course }); setEditingId(s.id); setShowForm(true); };
+  const handleEdit = (s) => { setForm({ full_name: s.full_name, group: s.group, barcode: s.barcode, course: s.course, inclusive_status: s.inclusive_status || 'none' }); setEditingId(s.id); setShowForm(true); };
 
   const handleDelete = (id) => {
     const s = students.find(x => x.id === id);
@@ -114,7 +124,7 @@ function StudentsPage() {
     });
   };
 
-  const handleCancel = () => { setForm({ full_name: '', group: '', barcode: '', course: 1 }); setEditingId(null); setShowForm(false); };
+  const handleCancel = () => { setForm({ full_name: '', group: '', barcode: '', course: 1, inclusive_status: 'none' }); setEditingId(null); setShowForm(false); };
 
   const handleCSVImport = async (e) => {
     const file = e.target.files[0]; if (!file) return;
@@ -124,8 +134,8 @@ function StudentsPage() {
     e.target.value = '';
   };
 
-  const clearFilters = () => { setSearch(''); setFilterGroup(''); setFilterCourse(''); setSortCol(''); };
-  const hasFilters = search || filterGroup || filterCourse;
+  const clearFilters = () => { setSearch(''); setFilterGroup(''); setFilterCourse(''); setFilterInclusive(''); setSortCol(''); };
+  const hasFilters = search || filterGroup || filterCourse || filterInclusive;
 
   if (loading) return <div className="loading">{t('students_loading')}</div>;
 
@@ -135,7 +145,7 @@ function StudentsPage() {
         <h1>{t('students_title')}</h1>
         <div className="page-header-actions">
           {selectedIds.size > 0 && <button className="btn btn-danger bulk-delete-btn" onClick={handleBulkDelete}>&#128465; {t('students_delete_selected', { count: selectedIds.size })}</button>}
-          <button className="btn btn-outline" onClick={() => fileInputRef.current?.click()}>&#128228; {t('students_import_csv')}</button>
+          <button className="btn btn-outline" onClick={() => fileInputRef.current?.click()}>{t('students_import_csv')}</button>
           <input type="file" accept=".csv" ref={fileInputRef} style={{ display: 'none' }} onChange={handleCSVImport} />
           <button className="btn btn-primary" onClick={() => { setShowForm(!showForm); setEditingId(null); setForm({ full_name: '', group: '', barcode: '', course: 1 }); }}>
             {showForm ? t('btn_cancel') : t('students_add')}
@@ -151,7 +161,7 @@ function StudentsPage() {
         </div>
       )}
 
-      {showForm && (
+          {showForm && (
         <div className="form-card">
           <h3>{editingId ? t('students_edit') : t('students_add_new')}</h3>
           <form onSubmit={handleSubmit}>
@@ -164,6 +174,17 @@ function StudentsPage() {
                   <option value={1}>1 {t('students_course_unit')}</option>
                   <option value={2}>2 {t('students_course_unit')}</option>
                   <option value={3}>3 {t('students_course_unit')}</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>{t('students_inclusive_status')}</label>
+                <select value={form.inclusive_status} onChange={(e) => setForm({ ...form, inclusive_status: e.target.value })}>
+                  <option value="none">{t('inclusive_none')}</option>
+                  <option value="disability">{t('inclusive_disability')}</option>
+                  <option value="orphan">{t('inclusive_orphan')}</option>
+                  <option value="vision">{t('inclusive_vision')}</option>
+                  <option value="hearing">{t('inclusive_hearing')}</option>
+                  <option value="other">{t('inclusive_other')}</option>
                 </select>
               </div>
             </div>
@@ -185,6 +206,15 @@ function StudentsPage() {
           <option value="">{t('students_all_courses')}</option>
           {courses.map(c => <option key={c} value={c}>{c} {t('students_course_unit')}</option>)}
         </select>
+        <select className="filter-select" value={filterInclusive} onChange={e => setFilterInclusive(e.target.value)}>
+          <option value="">{t('students_all_statuses')}</option>
+          <option value="priority">{t('inclusive_filter_priority')}</option>
+          <option value="disability">{t('inclusive_disability')}</option>
+          <option value="orphan">{t('inclusive_orphan')}</option>
+          <option value="vision">{t('inclusive_vision')}</option>
+          <option value="hearing">{t('inclusive_hearing')}</option>
+          <option value="other">{t('inclusive_other')}</option>
+        </select>
         {hasFilters && <button className="btn btn-sm btn-outline" onClick={clearFilters}>{t('btn_clear')}</button>}
       </div>
 
@@ -197,6 +227,7 @@ function StudentsPage() {
             <th className="sortable" onClick={() => handleSort('barcode')}>{t('students_barcode')}{sortIcon('barcode')}</th>
             <th className="sortable" onClick={() => handleSort('group')}>{t('students_group')}{sortIcon('group')}</th>
             <th className="sortable" onClick={() => handleSort('course')}>{t('students_course')}{sortIcon('course')}</th>
+            <th>{t('students_inclusive_status')}</th>
             <th>{t('students_actions')}</th>
           </tr></thead>
           <tbody>
@@ -208,6 +239,11 @@ function StudentsPage() {
                 <td><code>{s.barcode}</code></td>
                 <td><span className="badge">{s.group}</span></td>
                 <td>{s.course} {t('students_course_unit')}</td>
+                <td>
+                  {s.inclusive_status && s.inclusive_status !== 'none'
+                    ? <span className={`badge badge-inclusive badge-inclusive-${s.inclusive_status}`}>{t(`inclusive_${s.inclusive_status}`)}</span>
+                    : <span className="badge-none">—</span>}
+                </td>
                 <td>
                   <button className="btn btn-sm btn-outline" onClick={() => handleEdit(s)}>{t('btn_edit')}</button>
                   <button className="btn btn-sm btn-danger" onClick={() => handleDelete(s.id)}>{t('btn_delete')}</button>
