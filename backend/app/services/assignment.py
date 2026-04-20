@@ -187,3 +187,15 @@ class AssignmentService:
             select(func.count(Assignment.id)).where(Assignment.released_at.is_(None))
         )
         return result.scalar_one()
+
+    async def release_all(self) -> int:
+        """Release all active assignments. Returns the number of released assignments."""
+        result = await self.db.execute(
+            select(Assignment).where(Assignment.released_at.is_(None))
+        )
+        active_assignments = list(result.scalars().all())
+        now = datetime.now(timezone.utc)
+        for assignment in active_assignments:
+            assignment.released_at = now
+        await self.db.commit()
+        return len(active_assignments)

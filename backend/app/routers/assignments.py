@@ -178,6 +178,19 @@ async def release_locker(
     )
 
 
+@router.post("/release-all")
+async def release_all_lockers(
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+):
+    """Release all active locker assignments (e.g. end of semester)."""
+    service = AssignmentService(db)
+    released_count = await service.release_all()
+    await manager.broadcast("assignment_change")
+    await manager.broadcast("locker_change")
+    return {"released": released_count}
+
+
 @router.post("/import-combined-csv")
 async def import_combined_csv(
     file: UploadFile = File(...),

@@ -167,6 +167,12 @@ const translations = {
     assign_priority_override_title: 'Priority Students Waiting',
     assign_priority_warning: 'There are {count} priority (inclusive) student(s) still without a locker. It is recommended to assign them first. Proceed anyway?',
     assign_assign_anyway: 'Assign Anyway',
+    assign_release_all: 'Release All',
+    assign_release_all_title: 'Release All Assignments',
+    assign_release_all_msg: 'This will release all {count} active assignment(s). All lockers will be freed. This action cannot be undone. Proceed?',
+    assign_release_all_confirm: 'Release All',
+    assign_release_all_success: 'Successfully released {count} assignment(s).',
+    assign_release_all_none: 'No active assignments to release',
 
     // Users
     users_title: 'Users',
@@ -504,6 +510,12 @@ const translations = {
     assign_priority_override_title: 'Ожидают приоритетные студенты',
     assign_priority_warning: 'Есть {count} льготных студент(ов), у которых ещё нет шкафчика. Рекомендуется назначить их первыми. Всё равно продолжить?',
     assign_assign_anyway: 'Назначить всё равно',
+    assign_release_all: 'Освободить все',
+    assign_release_all_title: 'Освободить все назначения',
+    assign_release_all_msg: 'Это освободит все {count} активных назначений. Все шкафчики будут свободны. Действие нельзя отменить. Продолжить?',
+    assign_release_all_confirm: 'Освободить все',
+    assign_release_all_success: 'Успешно освобождено назначений: {count}.',
+    assign_release_all_none: 'Нет активных назначений для освобождения',
 
     // Users
     users_title: 'Пользователи',

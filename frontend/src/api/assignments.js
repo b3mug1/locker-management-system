@@ -13,6 +13,8 @@ export const assignLocker = (data) => api.post('/assignments', data);
 
 export const releaseAssignment = (id) => api.post(`/assignments/${id}/release`);
 
+export const releaseAllAssignments = () => api.post('/assignments/release-all');
+
 export const getDashboardStats = () => api.get('/dashboard/stats');
 
 export const getDashboardAnalytics = (period = 'month') =>

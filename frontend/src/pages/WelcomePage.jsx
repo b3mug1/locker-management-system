@@ -89,9 +89,9 @@ function WelcomePage() {
               <span /><span /><span />
             </div>
             <div className="lp-mockup-body">
-              <div className="lp-mock-stat"><span className="lp-mock-num">500+</span><span>{t('welcome_stat_lockers')}</span></div>
-              <div className="lp-mock-stat"><span className="lp-mock-num">3 000+</span><span>{t('welcome_stat_students')}</span></div>
-              <div className="lp-mock-stat"><span className="lp-mock-num">5</span><span>{t('welcome_stat_floors')}</span></div>
+              <div className="lp-mock-stat"><span className="lp-mock-num">1500+</span><span>{t('welcome_stat_lockers')}</span></div>
+              <div className="lp-mock-stat"><span className="lp-mock-num">7000+</span><span>{t('welcome_stat_students')}</span></div>
+              <div className="lp-mock-stat"><span className="lp-mock-num">3</span><span>{t('welcome_stat_floors')}</span></div>
               <div className="lp-mock-stat"><span className="lp-mock-num lp-mock-green">99.9%</span><span>{t('welcome_stat_uptime')}</span></div>
             </div>
             <div className="lp-mock-lockers">

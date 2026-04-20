@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { getAssignments, assignLocker, releaseAssignment, importCombinedCSV } from '../api/assignments';
+import { getAssignments, assignLocker, releaseAssignment, releaseAllAssignments, importCombinedCSV } from '../api/assignments';
 import { getStudents } from '../api/students';
 import { getLockers } from '../api/lockers';
 import { useWebSocket } from '../hooks/useWebSocket';
@@ -100,6 +100,27 @@ function AssignmentsPage() {
     });
   };
 
+  const activeCount = assignments.filter(a => !a.released_at).length;
+
+  const handleReleaseAll = () => {
+    if (activeCount === 0) return;
+    setConfirmModal({
+      open: true,
+      title: t('assign_release_all_title'),
+      message: t('assign_release_all_msg', { count: activeCount }),
+      variant: 'danger',
+      confirmText: t('assign_release_all_confirm'),
+      onConfirm: async () => {
+        setConfirmModal(m => ({ ...m, open: false })); setError('');
+        try {
+          const res = await releaseAllAssignments();
+          setSuccess(t('assign_release_all_success', { count: res.data.released }));
+          fetchAll();
+        } catch (err) { setError(err.response?.data?.detail || t('assign_release_failed')); }
+      },
+    });
+  };
+
   const formatDate = (d) => d ? new Date(d).toLocaleString() : '\u2014';
   const clearFilters = () => { setSearch(''); setFilterStatus(''); setSortCol(''); };
   const hasFilters = search || filterStatus;
@@ -121,6 +142,14 @@ function AssignmentsPage() {
         <div className="page-header-actions">
           <button className="btn btn-outline" onClick={() => csvInputRef.current?.click()}>{t('csv_combined_import')}</button>
           <input type="file" accept=".csv" ref={csvInputRef} style={{ display: 'none' }} onChange={handleCSVImport} />
+          <button
+            className="btn btn-danger"
+            onClick={handleReleaseAll}
+            disabled={activeCount === 0}
+            title={activeCount === 0 ? t('assign_release_all_none') : undefined}
+          >
+            {t('assign_release_all')}
+          </button>
           <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
             {showForm ? t('btn_cancel') : t('assign_add')}
           </button>
