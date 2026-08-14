@@ -10,6 +10,7 @@ from app.core.dependencies import get_current_admin, get_db
 from app.core.websocket import manager
 from app.models.user import User
 from app.schemas.locker import LockerCreate, LockerRead, LockerUpdate
+from app.services.audit import AuditLogService
 from app.services.locker import LockerService
 
 router = APIRouter(prefix="/lockers", tags=["Lockers"])
@@ -63,7 +64,7 @@ async def get_locker(
 async def create_locker(
     data: LockerCreate,
     db: AsyncSession = Depends(get_db),
-    _admin: User = Depends(get_current_admin),
+    current_admin: User = Depends(get_current_admin),
 ):
     service = LockerService(db)
     existing = await service.get_by_number(data.number)
@@ -73,6 +74,14 @@ async def create_locker(
             detail="Locker number already exists",
         )
     locker = await service.create(data)
+    await AuditLogService(db).create(
+        actor_id=current_admin.id,
+        action="create",
+        entity_type="locker",
+        entity_id=locker.id,
+        summary=f"Created locker {locker.number}",
+        new_values=data.model_dump(),
+    )
     await manager.broadcast("locker_change")
     return LockerRead(
         id=locker.id,
@@ -91,12 +100,32 @@ async def update_locker(
     locker_id: int,
     data: LockerUpdate,
     db: AsyncSession = Depends(get_db),
-    _admin: User = Depends(get_current_admin),
+    current_admin: User = Depends(get_current_admin),
 ):
     service = LockerService(db)
+    existing = await service.get_by_id(locker_id)
+    old_values = None
+    if existing:
+        old_values = {
+            "number": existing.number,
+            "size": existing.size,
+            "access_type": existing.access_type,
+            "capacity": existing.capacity,
+            "floor": existing.floor,
+            "status": existing.status,
+        }
     locker = await service.update(locker_id, data)
     if not locker:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Locker not found")
+    await AuditLogService(db).create(
+        actor_id=current_admin.id,
+        action="update",
+        entity_type="locker",
+        entity_id=locker.id,
+        summary=f"Updated locker {locker.number}",
+        old_values=old_values,
+        new_values=data.model_dump(exclude_unset=True),
+    )
     await manager.broadcast("locker_change")
     occupied = await service.get_occupied_count(locker_id)
     return LockerRead(
@@ -115,12 +144,26 @@ async def update_locker(
 async def delete_locker(
     locker_id: int,
     db: AsyncSession = Depends(get_db),
-    _admin: User = Depends(get_current_admin),
+    current_admin: User = Depends(get_current_admin),
 ):
     service = LockerService(db)
+    existing = await service.get_by_id(locker_id)
     deleted = await service.delete(locker_id)
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Locker not found")
+    await AuditLogService(db).create(
+        actor_id=current_admin.id,
+        action="delete",
+        entity_type="locker",
+        entity_id=locker_id,
+        summary=f"Deleted locker {existing.number if existing else locker_id}",
+        old_values={
+            "number": existing.number,
+            "size": existing.size,
+            "floor": existing.floor,
+            "status": existing.status,
+        } if existing else None,
+    )
     await manager.broadcast("locker_change")
 
 
@@ -128,7 +171,7 @@ async def delete_locker(
 async def import_lockers_csv(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
-    _admin: User = Depends(get_current_admin),
+    current_admin: User = Depends(get_current_admin),
 ):
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files are accepted")
@@ -171,6 +214,13 @@ async def import_lockers_csv(
             skipped += 1
 
     if created > 0:
+        await AuditLogService(db).create(
+            actor_id=current_admin.id,
+            action="import",
+            entity_type="locker",
+            entity_id=None,
+            summary=f"Imported lockers CSV: {created} created, {skipped} skipped",
+        )
         await manager.broadcast("locker_change")
 
     return {"created": created, "skipped": skipped, "errors": errors}

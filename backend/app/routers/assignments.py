@@ -4,6 +4,7 @@ import csv
 import io
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, status
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_admin, get_current_user, get_db
@@ -11,10 +12,14 @@ from app.core.websocket import manager
 from app.models.user import User
 from app.models.student import Student
 from app.models.locker import Locker
-from app.schemas.assignment import AssignmentCreate, AssignmentRead
+from app.models.assignment import Assignment
+from app.schemas.assignment import AssignmentCreate, AssignmentRead, AutoAssignRequest, AutoAssignResult
 from app.services.assignment import AssignmentService
 from app.services.student import StudentService
 from app.services.locker import LockerService
+from app.services.audit import AuditLogService
+from app.services.notification import NotificationService
+from app.services.email import send_assignment_email, send_release_email
 
 router = APIRouter(prefix="/assignments", tags=["Assignments"])
 
@@ -135,10 +140,29 @@ async def active_count(
 async def assign_locker(
     data: AssignmentCreate,
     db: AsyncSession = Depends(get_db),
-    _admin: User = Depends(get_current_admin),
+    current_admin: User = Depends(get_current_admin),
 ):
     service = AssignmentService(db)
     assignment = await service.assign(data)
+    await AuditLogService(db).create(
+        actor_id=current_admin.id,
+        action="assign",
+        entity_type="assignment",
+        entity_id=assignment.id,
+        summary=f"Assigned locker {assignment.locker.number if assignment.locker else assignment.locker_id} to {assignment.student.full_name if assignment.student else assignment.student_id}",
+    )
+    student_user = (await db.execute(select(User).where(User.student_id == assignment.student_id))).scalar_one_or_none()
+    if student_user:
+        await NotificationService(db).create(
+            user_id=student_user.id,
+            title="Locker assigned",
+            message=f"Locker {assignment.locker.number} on floor {assignment.locker.floor} has been assigned to you.",
+            type="success",
+        )
+        try:
+            send_assignment_email(student_user.email, assignment.locker.number, assignment.locker.floor)
+        except Exception:
+            pass
     await manager.broadcast("assignment_change")
     await manager.broadcast("locker_change")
     return AssignmentRead(
@@ -156,7 +180,7 @@ async def assign_locker(
 async def release_locker(
     assignment_id: int,
     db: AsyncSession = Depends(get_db),
-    _admin: User = Depends(get_current_admin),
+    current_admin: User = Depends(get_current_admin),
 ):
     service = AssignmentService(db)
     assignment = await service.release(assignment_id)
@@ -165,6 +189,25 @@ async def release_locker(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Assignment not found",
         )
+    await AuditLogService(db).create(
+        actor_id=current_admin.id,
+        action="release",
+        entity_type="assignment",
+        entity_id=assignment.id,
+        summary=f"Released locker {assignment.locker.number if assignment.locker else assignment.locker_id} from {assignment.student.full_name if assignment.student else assignment.student_id}",
+    )
+    student_user = (await db.execute(select(User).where(User.student_id == assignment.student_id))).scalar_one_or_none()
+    if student_user:
+        await NotificationService(db).create(
+            user_id=student_user.id,
+            title="Locker released",
+            message=f"Locker {assignment.locker.number} has been released.",
+            type="warning",
+        )
+        try:
+            send_release_email(student_user.email, assignment.locker.number)
+        except Exception:
+            pass
     await manager.broadcast("assignment_change")
     await manager.broadcast("locker_change")
     return AssignmentRead(
@@ -181,21 +224,125 @@ async def release_locker(
 @router.post("/release-all")
 async def release_all_lockers(
     db: AsyncSession = Depends(get_db),
-    _admin: User = Depends(get_current_admin),
+    current_admin: User = Depends(get_current_admin),
 ):
     """Release all active locker assignments (e.g. end of semester)."""
     service = AssignmentService(db)
     released_count = await service.release_all()
+    await AuditLogService(db).create(
+        actor_id=current_admin.id,
+        action="release_all",
+        entity_type="assignment",
+        entity_id=None,
+        summary=f"Released all active assignments ({released_count})",
+    )
     await manager.broadcast("assignment_change")
     await manager.broadcast("locker_change")
     return {"released": released_count}
+
+
+@router.post("/auto-assign", response_model=AutoAssignResult)
+async def auto_assign_lockers(
+    data: AutoAssignRequest,
+    db: AsyncSession = Depends(get_db),
+    current_admin: User = Depends(get_current_admin),
+):
+    active_student_ids = select(Assignment.student_id).where(Assignment.released_at.is_(None))
+    students = list((await db.execute(
+        select(Student)
+        .where(~Student.id.in_(active_student_ids))
+        .order_by(
+            (Student.inclusive_status == "none").asc(),
+            Student.course.desc(),
+            Student.group.asc(),
+            Student.full_name.asc(),
+        )
+    )).scalars().all())
+
+    active_counts = {
+        row.locker_id: row.count
+        for row in (await db.execute(
+            select(Assignment.locker_id, func.count(Assignment.id).label("count"))
+            .where(Assignment.released_at.is_(None))
+            .group_by(Assignment.locker_id)
+        )).all()
+    }
+    lockers = list((await db.execute(
+        select(Locker)
+        .where(Locker.status == "active")
+        .order_by(Locker.floor.asc(), Locker.size.desc(), Locker.number.asc())
+    )).scalars().all())
+
+    items = []
+    remaining_by_locker = {locker.id: locker.capacity - active_counts.get(locker.id, 0) for locker in lockers}
+    available_spots = sum(max(0, spots) for spots in remaining_by_locker.values())
+    limit = data.max_assignments or len(students)
+
+    for student in students:
+        if len(items) >= limit:
+            break
+        candidates = [locker for locker in lockers if remaining_by_locker.get(locker.id, 0) > 0]
+        if not candidates:
+            break
+
+        def score(locker: Locker) -> tuple:
+            occupied = locker.capacity - remaining_by_locker[locker.id]
+            same_group_bonus = 0
+            if occupied > 0:
+                same_group_bonus = -1
+            priority_floor = locker.floor if student.inclusive_status != "none" else abs(locker.floor - student.course)
+            return (priority_floor, same_group_bonus, occupied, locker.number)
+
+        locker = sorted(candidates, key=score)[0]
+        occupied_before = locker.capacity - remaining_by_locker[locker.id]
+        remaining_by_locker[locker.id] -= 1
+        items.append({
+            "student_id": student.id,
+            "student_name": student.full_name,
+            "student_group": student.group,
+            "student_course": student.course,
+            "inclusive_status": student.inclusive_status,
+            "locker_id": locker.id,
+            "locker_number": locker.number,
+            "locker_floor": locker.floor,
+            "locker_size": locker.size,
+            "locker_capacity": locker.capacity,
+            "locker_occupied_before": occupied_before,
+        })
+
+    created = 0
+    if data.commit and items:
+        for item in items:
+            db.add(Assignment(student_id=item["student_id"], locker_id=item["locker_id"]))
+            created += 1
+        await db.flush()
+        await AuditLogService(db).create(
+            actor_id=current_admin.id,
+            action="auto_assign",
+            entity_type="assignment",
+            entity_id=None,
+            summary=f"Auto-assigned {created} students",
+            new_values={"assignments": items},
+            commit=False,
+        )
+        await db.commit()
+        await manager.broadcast("assignment_change")
+        await manager.broadcast("locker_change")
+
+    return {
+        "planned": len(items),
+        "created": created,
+        "skipped_students": max(0, len(students) - len(items)),
+        "available_spots": available_spots,
+        "items": items,
+    }
 
 
 @router.post("/import-combined-csv")
 async def import_combined_csv(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
-    _admin: User = Depends(get_current_admin),
+    current_admin: User = Depends(get_current_admin),
 ):
     """Import combined CSV: each row has student + locker + assignment data.
     Expected columns: full_name, barcode, group, course, locker_number, size, floor, access_type
@@ -310,6 +457,13 @@ async def import_combined_csv(
             skipped += 1
 
     await db.commit()
+    await AuditLogService(db).create(
+        actor_id=current_admin.id,
+        action="import",
+        entity_type="assignment",
+        entity_id=None,
+        summary=f"Imported combined CSV: {created_students} students, {created_lockers} lockers, {created_assignments} assignments",
+    )
     await manager.broadcast("student_change")
     await manager.broadcast("locker_change")
     await manager.broadcast("assignment_change")

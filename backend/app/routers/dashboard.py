@@ -226,7 +226,62 @@ async def dashboard_analytics(
             "lockers": r.locker_count,
             "capacity": r.total_capacity,
             "occupied": occ,
+            "rate": round(occ / r.total_capacity * 100, 1) if r.total_capacity > 0 else 0,
         })
+
+    # Busiest floors by current occupancy rate
+    floor_rows = (await db.execute(
+        select(
+            Locker.floor,
+            func.count(Locker.id).label("lockers"),
+            func.coalesce(func.sum(Locker.capacity), 0).label("capacity"),
+        )
+        .where(Locker.status == "active")
+        .group_by(Locker.floor)
+        .order_by(Locker.floor)
+    )).all()
+    busiest_floors = []
+    for r in floor_rows:
+        occupied = (await db.execute(
+            select(func.count(Assignment.id)).where(
+                Assignment.released_at.is_(None),
+                Assignment.locker_id.in_(
+                    select(Locker.id).where(Locker.floor == r.floor, Locker.status == "active")
+                ),
+            )
+        )).scalar_one()
+        busiest_floors.append({
+            "floor": r.floor,
+            "lockers": r.lockers,
+            "capacity": r.capacity,
+            "occupied": occupied,
+            "rate": round(occupied / r.capacity * 100, 1) if r.capacity > 0 else 0,
+        })
+    busiest_floors.sort(key=lambda item: item["rate"], reverse=True)
+
+    active_assignments = (await db.execute(
+        select(func.count(Assignment.id)).where(Assignment.released_at.is_(None))
+    )).scalar_one()
+    current_rate = round(active_assignments / total_capacity * 100, 1) if total_capacity > 0 else 0
+
+    students_count = (await db.execute(select(func.count(Student.id)))).scalar_one()
+    priority_students = (await db.execute(
+        select(func.count(Student.id)).where(Student.inclusive_status != "none")
+    )).scalar_one()
+    assigned_students = (await db.execute(
+        select(func.count(func.distinct(Assignment.student_id))).where(Assignment.released_at.is_(None))
+    )).scalar_one()
+    students_without_locker = max(0, students_count - assigned_students)
+    priority_share = round(priority_students / students_count * 100, 1) if students_count > 0 else 0
+
+    duration_rows = (await db.execute(
+        select(Assignment.assigned_at, Assignment.released_at).where(Assignment.released_at.isnot(None))
+    )).all()
+    if duration_rows:
+        avg_seconds = sum((r.released_at - r.assigned_at).total_seconds() for r in duration_rows) / len(duration_rows)
+        average_duration_days = round(avg_seconds / 86400, 1)
+    else:
+        average_duration_days = 0
 
     # Peak usage: top 5 busiest days
     peak_result = await db.execute(
@@ -248,10 +303,17 @@ async def dashboard_analytics(
     return {
         "period": period,
         "total_capacity": total_capacity,
+        "current_occupied": active_assignments,
+        "current_rate": current_rate,
         "occupancy_trend": occupancy_trend,
         "assignments_per_day": assignments_per_day,
         "releases_per_day": releases_per_day,
         "size_stats": size_stats,
+        "busiest_floors": busiest_floors,
+        "priority_students": priority_students,
+        "priority_share": priority_share,
+        "students_without_locker": students_without_locker,
+        "average_duration_days": average_duration_days,
         "peak_days": peak_days,
         "maintenance_count": maintenance_count,
     }

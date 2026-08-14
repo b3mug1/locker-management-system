@@ -7,7 +7,17 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.websocket import manager
-from app.routers import auth, users, students, lockers, assignments, dashboard
+from app.routers import (
+    assignments,
+    audit_logs,
+    auth,
+    dashboard,
+    incidents,
+    lockers,
+    notifications,
+    students,
+    users,
+)
 
 
 @asynccontextmanager
@@ -39,6 +49,9 @@ app.include_router(students.router, prefix=api_prefix)
 app.include_router(lockers.router, prefix=api_prefix)
 app.include_router(assignments.router, prefix=api_prefix)
 app.include_router(dashboard.router, prefix=api_prefix)
+app.include_router(incidents.router, prefix=api_prefix)
+app.include_router(audit_logs.router, prefix=api_prefix)
+app.include_router(notifications.router, prefix=api_prefix)
 
 
 @app.websocket("/ws")
