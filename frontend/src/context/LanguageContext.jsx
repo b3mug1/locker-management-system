@@ -441,7 +441,7 @@ const translations = {
 
   ru: {
     // Navbar
-    nav_brand: 'Управление шкафчиками',
+    nav_brand: 'AITU Locker',
     nav_dashboard: 'Главная',
     nav_users: 'Пользователи',
     nav_students: 'Студенты',
@@ -533,7 +533,7 @@ const translations = {
     students_csv_failed: 'Импорт CSV не удался',
 
     // Lockers
-    lockers_title: 'Управление шкафчиками',
+    lockers_title: 'AITU Locker',
     lockers_add: '+ Добавить шкафчик',
     lockers_edit: 'Редактировать шкафчик',
     lockers_add_new: 'Добавить новый шкафчик',
