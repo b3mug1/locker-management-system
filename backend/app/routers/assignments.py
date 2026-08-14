@@ -6,6 +6,7 @@ import io
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.dependencies import get_current_admin, get_current_user, get_db
 from app.core.websocket import manager
@@ -228,14 +229,46 @@ async def release_all_lockers(
 ):
     """Release all active locker assignments (e.g. end of semester)."""
     service = AssignmentService(db)
+    active_assignments = list((await db.execute(
+        select(Assignment)
+        .options(selectinload(Assignment.locker))
+        .where(Assignment.released_at.is_(None))
+    )).scalars().all())
     released_count = await service.release_all()
+    student_ids = [assignment.student_id for assignment in active_assignments]
+    users_by_student_id = {}
+    if student_ids:
+        users = list((await db.execute(
+            select(User).where(User.student_id.in_(student_ids))
+        )).scalars().all())
+        users_by_student_id = {user.student_id: user for user in users}
+
     await AuditLogService(db).create(
         actor_id=current_admin.id,
         action="release_all",
         entity_type="assignment",
         entity_id=None,
         summary=f"Released all active assignments ({released_count})",
+        commit=False,
     )
+    notification_service = NotificationService(db)
+    for assignment in active_assignments:
+        student_user = users_by_student_id.get(assignment.student_id)
+        if not student_user or not assignment.locker:
+            continue
+        await notification_service.create(
+            user_id=student_user.id,
+            title="Locker released",
+            message=f"Locker {assignment.locker.number} has been released.",
+            type="warning",
+            commit=False,
+        )
+        try:
+            send_release_email(student_user.email, assignment.locker.number)
+        except Exception:
+            pass
+
+    await db.commit()
     await manager.broadcast("assignment_change")
     await manager.broadcast("locker_change")
     return {"released": released_count}
