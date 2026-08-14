@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState, useCallback } from 'react';
 const translations = {
   en: {
     // Navbar
-    nav_brand: 'Locker Management',
+    nav_brand: 'AITU Locker',
     nav_dashboard: 'Dashboard',
     nav_users: 'Users',
     nav_students: 'Students',
