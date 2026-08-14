@@ -52,15 +52,15 @@ function Navbar() {
             <NavLink to="/students" className={navClass} onClick={() => setMobileOpen(false)}>{t('nav_students')}</NavLink>
             <NavLink to="/lockers" className={navClass} onClick={() => setMobileOpen(false)}>{t('nav_lockers')}</NavLink>
             <NavLink to="/assignments" className={navClass} onClick={() => setMobileOpen(false)}>{t('nav_assignments')}</NavLink>
-            <NavLink to="/incidents" className={navClass} onClick={() => setMobileOpen(false)}>Maintenance</NavLink>
+            <NavLink to="/incidents" className={navClass} onClick={() => setMobileOpen(false)}>{t('nav_maintenance')}</NavLink>
             <NavLink to="/analytics" className={navClass} onClick={() => setMobileOpen(false)}>{t('nav_analytics')}</NavLink>
-            <NavLink to="/audit-logs" className={navClass} onClick={() => setMobileOpen(false)}>Activity</NavLink>
+            <NavLink to="/audit-logs" className={navClass} onClick={() => setMobileOpen(false)}>{t('nav_activity')}</NavLink>
           </>
         )}
         {user?.role === 'user' && (
           <NavLink to="/my-locker" className={navClass} onClick={() => setMobileOpen(false)}>{t('nav_my_locker')}</NavLink>
         )}
-        <NavLink to="/notifications" className={navClass} onClick={() => setMobileOpen(false)}>Notifications</NavLink>
+        <NavLink to="/notifications" className={navClass} onClick={() => setMobileOpen(false)}>{t('nav_notifications')}</NavLink>
       </div>
 
       <div className="navbar-user">
