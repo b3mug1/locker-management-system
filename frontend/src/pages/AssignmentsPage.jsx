@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { getAssignments, assignLocker, releaseAssignment, releaseAllAssignments, importCombinedCSV, autoAssignLockers } from '../api/assignments';
 import { getStudents } from '../api/students';
 import { getLockers } from '../api/lockers';
@@ -139,9 +139,9 @@ function AssignmentsPage() {
     try {
       const res = await autoAssignLockers({ commit: false });
       setAutoAssignPlan(res.data);
-      if (res.data.planned === 0) setSuccess('No students can be auto-assigned right now.');
+      if (res.data.planned === 0) setSuccess(t('auto_empty'));
     } catch (err) {
-      setError(err.response?.data?.detail || 'Auto assignment preview failed');
+      setError(err.response?.data?.detail || t('auto_preview_failed'));
     }
   };
 
@@ -150,20 +150,20 @@ function AssignmentsPage() {
     if (planned === 0) return;
     setConfirmModal({
       open: true,
-      title: 'Apply Auto Assignment',
-      message: `Create ${planned} automatic assignment(s)?`,
+      title: t('auto_apply_title'),
+      message: t('auto_apply_msg', { count: planned }),
       variant: 'warning',
-      confirmText: 'Apply',
+      confirmText: t('auto_apply_confirm'),
       onConfirm: async () => {
         setConfirmModal(m => ({ ...m, open: false }));
         setError(''); setSuccess('');
         try {
           const res = await autoAssignLockers({ commit: true });
-          setSuccess(`Auto-assigned ${res.data.created} student(s).`);
+          setSuccess(t('auto_success', { count: res.data.created }));
           setAutoAssignPlan(null);
           fetchAll();
         } catch (err) {
-          setError(err.response?.data?.detail || 'Auto assignment failed');
+          setError(err.response?.data?.detail || t('auto_failed'));
         }
       },
     });
@@ -178,8 +178,8 @@ function AssignmentsPage() {
         <div className="page-header-actions">
           <button className="btn btn-outline" onClick={() => csvInputRef.current?.click()}>{t('csv_combined_import')}</button>
           <input type="file" accept=".csv" ref={csvInputRef} style={{ display: 'none' }} onChange={handleCSVImport} />
-          <button className="btn btn-outline" onClick={handleAutoAssignPreview}>Auto Preview</button>
-          <button className="btn btn-primary" onClick={handleAutoAssignApply} disabled={!autoAssignPlan?.planned}>Apply Auto</button>
+          <button className="btn btn-outline" onClick={handleAutoAssignPreview}>{t('auto_preview')}</button>
+          <button className="btn btn-primary" onClick={handleAutoAssignApply} disabled={!autoAssignPlan?.planned}>{t('auto_apply')}</button>
           <button
             className="btn btn-danger"
             onClick={handleReleaseAll}
@@ -206,21 +206,21 @@ function AssignmentsPage() {
       {autoAssignPlan && (
         <div className="dashboard-card" style={{ marginBottom: '1rem' }}>
           <div className="dashboard-card-header">
-            <h2>Auto Assignment Preview</h2>
-            <button className="btn btn-sm btn-outline" onClick={() => setAutoAssignPlan(null)}>Hide</button>
+            <h2>{t('auto_preview_title')}</h2>
+            <button className="btn btn-sm btn-outline" onClick={() => setAutoAssignPlan(null)}>{t('auto_hide')}</button>
           </div>
           <p className="analytics-sub">
-            Planned: {autoAssignPlan.planned}, available spots: {autoAssignPlan.available_spots}, skipped students: {autoAssignPlan.skipped_students}
+            {t('auto_summary', { planned: autoAssignPlan.planned, spots: autoAssignPlan.available_spots, skipped: autoAssignPlan.skipped_students })}
           </p>
           <div className="table-container">
             <table>
-              <thead><tr><th>Student</th><th>Group</th><th>Priority</th><th>Locker</th><th>Floor</th><th>Capacity</th></tr></thead>
+              <thead><tr><th>{t('assign_student')}</th><th>{t('students_group')}</th><th>{t('auto_priority')}</th><th>{t('assign_locker')}</th><th>{t('lockers_floor')}</th><th>{t('lockers_capacity')}</th></tr></thead>
               <tbody>
                 {autoAssignPlan.items.slice(0, 20).map(item => (
                   <tr key={`${item.student_id}-${item.locker_id}`}>
                     <td>{item.student_name}</td>
                     <td><span className="badge">{item.student_group}</span></td>
-                    <td>{item.inclusive_status !== 'none' ? item.inclusive_status : '—'}</td>
+                    <td>{item.inclusive_status !== 'none' ? (t(`inclusive_${item.inclusive_status}`) === `inclusive_${item.inclusive_status}` ? item.inclusive_status : t(`inclusive_${item.inclusive_status}`)) : '—'}</td>
                     <td><strong>{item.locker_number}</strong></td>
                     <td>{item.locker_floor}</td>
                     <td>{item.locker_occupied_before}/{item.locker_capacity}</td>
@@ -229,7 +229,7 @@ function AssignmentsPage() {
               </tbody>
             </table>
           </div>
-          {autoAssignPlan.items.length > 20 && <p className="analytics-sub">Showing first 20 assignments.</p>}
+          {autoAssignPlan.items.length > 20 && <p className="analytics-sub">{t('auto_showing_first')}</p>}
         </div>
       )}
 
