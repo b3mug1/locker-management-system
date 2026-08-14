@@ -113,7 +113,21 @@ function UserDashboard() {
         </div>
       ) : (
         <div className="empty-state">
-          <div className="empty-icon">&#128275;</div>
+          <div className="empty-locker-visual" aria-hidden="true">
+            <div className="empty-locker-glow" />
+            <div className="empty-locker-body">
+              <div className="empty-locker-shine" />
+              <div className="empty-locker-vents">
+                <span />
+                <span />
+                <span />
+              </div>
+              <div className="empty-locker-handle" />
+              <div className="empty-locker-nameplate" />
+              <div className="empty-locker-base" />
+            </div>
+            <div className="empty-locker-shadow" />
+          </div>
           <h2>{t('ud_no_locker')}</h2>
           <p>{t('ud_no_locker_desc')}</p>
         </div>
