@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { getAssignments, assignLocker, releaseAssignment, releaseAllAssignments, importCombinedCSV } from '../api/assignments';
+import { getAssignments, assignLocker, releaseAssignment, releaseAllAssignments, importCombinedCSV, autoAssignLockers } from '../api/assignments';
 import { getStudents } from '../api/students';
 import { getLockers } from '../api/lockers';
 import { useWebSocket } from '../hooks/useWebSocket';
@@ -19,6 +19,7 @@ function AssignmentsPage() {
   const [confirmModal, setConfirmModal] = useState({ open: false, title: '', message: '', variant: 'warning', confirmText: t('btn_confirm'), onConfirm: null });
   const csvInputRef = useRef(null);
   const [importStatus, setImportStatus] = useState(null);
+  const [autoAssignPlan, setAutoAssignPlan] = useState(null);
 
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -133,6 +134,41 @@ function AssignmentsPage() {
     e.target.value = '';
   };
 
+  const handleAutoAssignPreview = async () => {
+    setError(''); setSuccess('');
+    try {
+      const res = await autoAssignLockers({ commit: false });
+      setAutoAssignPlan(res.data);
+      if (res.data.planned === 0) setSuccess('No students can be auto-assigned right now.');
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Auto assignment preview failed');
+    }
+  };
+
+  const handleAutoAssignApply = () => {
+    const planned = autoAssignPlan?.planned || 0;
+    if (planned === 0) return;
+    setConfirmModal({
+      open: true,
+      title: 'Apply Auto Assignment',
+      message: `Create ${planned} automatic assignment(s)?`,
+      variant: 'warning',
+      confirmText: 'Apply',
+      onConfirm: async () => {
+        setConfirmModal(m => ({ ...m, open: false }));
+        setError(''); setSuccess('');
+        try {
+          const res = await autoAssignLockers({ commit: true });
+          setSuccess(`Auto-assigned ${res.data.created} student(s).`);
+          setAutoAssignPlan(null);
+          fetchAll();
+        } catch (err) {
+          setError(err.response?.data?.detail || 'Auto assignment failed');
+        }
+      },
+    });
+  };
+
   if (loading) return <div className="loading">{t('assign_loading')}</div>;
 
   return (
@@ -142,6 +178,8 @@ function AssignmentsPage() {
         <div className="page-header-actions">
           <button className="btn btn-outline" onClick={() => csvInputRef.current?.click()}>{t('csv_combined_import')}</button>
           <input type="file" accept=".csv" ref={csvInputRef} style={{ display: 'none' }} onChange={handleCSVImport} />
+          <button className="btn btn-outline" onClick={handleAutoAssignPreview}>Auto Preview</button>
+          <button className="btn btn-primary" onClick={handleAutoAssignApply} disabled={!autoAssignPlan?.planned}>Apply Auto</button>
           <button
             className="btn btn-danger"
             onClick={handleReleaseAll}
@@ -162,6 +200,36 @@ function AssignmentsPage() {
         <div className="alert alert-success">
           {t('csv_combined_result', { students: importStatus.created_students, lockers: importStatus.created_lockers, assignments: importStatus.created_assignments, skipped: importStatus.skipped })}
           {importStatus.errors?.length > 0 && (<ul className="import-errors">{importStatus.errors.map((e, i) => <li key={i}>{e}</li>)}</ul>)}
+        </div>
+      )}
+
+      {autoAssignPlan && (
+        <div className="dashboard-card" style={{ marginBottom: '1rem' }}>
+          <div className="dashboard-card-header">
+            <h2>Auto Assignment Preview</h2>
+            <button className="btn btn-sm btn-outline" onClick={() => setAutoAssignPlan(null)}>Hide</button>
+          </div>
+          <p className="analytics-sub">
+            Planned: {autoAssignPlan.planned}, available spots: {autoAssignPlan.available_spots}, skipped students: {autoAssignPlan.skipped_students}
+          </p>
+          <div className="table-container">
+            <table>
+              <thead><tr><th>Student</th><th>Group</th><th>Priority</th><th>Locker</th><th>Floor</th><th>Capacity</th></tr></thead>
+              <tbody>
+                {autoAssignPlan.items.slice(0, 20).map(item => (
+                  <tr key={`${item.student_id}-${item.locker_id}`}>
+                    <td>{item.student_name}</td>
+                    <td><span className="badge">{item.student_group}</span></td>
+                    <td>{item.inclusive_status !== 'none' ? item.inclusive_status : '—'}</td>
+                    <td><strong>{item.locker_number}</strong></td>
+                    <td>{item.locker_floor}</td>
+                    <td>{item.locker_occupied_before}/{item.locker_capacity}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {autoAssignPlan.items.length > 20 && <p className="analytics-sub">Showing first 20 assignments.</p>}
         </div>
       )}
 

@@ -15,6 +15,8 @@ export const releaseAssignment = (id) => api.post(`/assignments/${id}/release`);
 
 export const releaseAllAssignments = () => api.post('/assignments/release-all');
 
+export const autoAssignLockers = (data) => api.post('/assignments/auto-assign', data);
+
 export const getDashboardStats = () => api.get('/dashboard/stats');
 
 export const getDashboardAnalytics = (period = 'month') =>

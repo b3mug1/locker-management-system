@@ -12,6 +12,10 @@ import LockersPage from './pages/LockersPage';
 import AssignmentsPage from './pages/AssignmentsPage';
 import UserDashboard from './pages/UserDashboard';
 import ChangePasswordPage from './pages/ChangePasswordPage';
+import AnalyticsPage from './pages/AnalyticsPage';
+import IncidentsPage from './pages/IncidentsPage';
+import AuditLogPage from './pages/AuditLogPage';
+import NotificationsPage from './pages/NotificationsPage';
 
 function App() {
   const { user } = useAuth();
@@ -33,6 +37,10 @@ function App() {
           <Route path="/students" element={<ProtectedRoute requiredRole="admin"><StudentsPage /></ProtectedRoute>} />
           <Route path="/lockers" element={<ProtectedRoute requiredRole="admin"><LockersPage /></ProtectedRoute>} />
           <Route path="/assignments" element={<ProtectedRoute requiredRole="admin"><AssignmentsPage /></ProtectedRoute>} />
+          <Route path="/analytics" element={<ProtectedRoute requiredRole="admin"><AnalyticsPage /></ProtectedRoute>} />
+          <Route path="/incidents" element={<ProtectedRoute requiredRole="admin"><IncidentsPage /></ProtectedRoute>} />
+          <Route path="/audit-logs" element={<ProtectedRoute requiredRole="admin"><AuditLogPage /></ProtectedRoute>} />
+          <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/my-locker" element={<UserDashboard />} />
           <Route path="/change-password" element={<ChangePasswordPage />} />
         </Route>
