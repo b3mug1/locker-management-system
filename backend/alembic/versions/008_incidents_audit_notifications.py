@@ -1,6 +1,6 @@
 """add incidents audit logs and notifications
 
-Revision ID: 008_incidents_audit_notifications
+Revision ID: 008_incidents_audit
 Revises: 007_inclusive_status
 Create Date: 2026-08-14
 """
@@ -8,7 +8,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision = "008_incidents_audit_notifications"
+revision = "008_incidents_audit"
 down_revision = "007_inclusive_status"
 branch_labels = None
 depends_on = None
