@@ -440,6 +440,20 @@ const translations = {
     welcome_cta_title: 'Ready to get started?',
     welcome_cta_subtitle: 'Sign in to access the locker management dashboard.',
     welcome_footer_rights: 'All rights reserved.',
+
+    // 404 Not Found
+    nf_badge: '404 Error',
+    nf_title: 'Locker Compartment Not Found',
+    nf_subtitle: 'The page or locker section you are trying to access does not exist, has been moved, or is temporarily unavailable.',
+    nf_btn_home: 'Dashboard',
+    nf_btn_welcome: 'Back to Home',
+    nf_btn_back: 'Go Back',
+    nf_quick_links: 'Helpful Shortcuts:',
+    nf_link_lockers: 'Lockers',
+    nf_link_students: 'Students',
+    nf_link_incidents: 'Incidents',
+    nf_link_mylocker: 'My Locker',
+    nf_link_login: 'Login',
   },
 
   ru: {
@@ -881,6 +895,20 @@ const translations = {
     welcome_cta_title: 'Готовы начать?',
     welcome_cta_subtitle: 'Войдите, чтобы получить доступ к панели управления шкафчиками.',
     welcome_footer_rights: 'Все права защищены.',
+
+    // 404 Not Found
+    nf_badge: 'Ошибка 404',
+    nf_title: 'Шкафчик или страница не найдены',
+    nf_subtitle: 'Запрашиваемая страница или ячейка не существует, была перемещена или временно недоступна.',
+    nf_btn_home: 'В панель управления',
+    nf_btn_welcome: 'На главную',
+    nf_btn_back: 'Назад',
+    nf_quick_links: 'Полезные разделы:',
+    nf_link_lockers: 'Шкафчики',
+    nf_link_students: 'Студенты',
+    nf_link_incidents: 'Обслуживание',
+    nf_link_mylocker: 'Мой шкафчик',
+    nf_link_login: 'Войти',
   },
 };
 

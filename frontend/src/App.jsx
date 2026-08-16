@@ -16,6 +16,7 @@ import AnalyticsPage from './pages/AnalyticsPage';
 import IncidentsPage from './pages/IncidentsPage';
 import AuditLogPage from './pages/AuditLogPage';
 import NotificationsPage from './pages/NotificationsPage';
+import NotFoundPage from './pages/NotFoundPage';
 
 function App() {
   const { user } = useAuth();
@@ -48,7 +49,7 @@ function App() {
 
       {/* Root: welcome for guests, dashboard for logged-in */}
       <Route path="/" element={user ? <Navigate to="/dashboard" /> : <Navigate to="/welcome" />} />
-      <Route path="*" element={<Navigate to="/" />} />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 }
