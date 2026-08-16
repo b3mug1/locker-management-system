@@ -131,7 +131,7 @@ function UserDashboard() {
 
       {reportSuccess && (
         <div className="alert alert-success">
-          ✅ {t('incident_reported_success')}
+          {t('incident_reported_success')}
         </div>
       )}
 
@@ -173,7 +173,7 @@ function UserDashboard() {
               className="btn btn-sm btn-outline-warning"
               onClick={() => setReportModal(true)}
             >
-              ⚠️ {t('incident_report_defect')}
+              {t('incident_report_defect')}
             </button>
           </div>
 
@@ -213,7 +213,7 @@ function UserDashboard() {
           {/* Active / Recent Repair Reports for this Student */}
           {myIncidents.length > 0 && (
             <div className="ud-incidents-block">
-              <h3 className="ud-subheading">📋 {t('ud_my_reports')}</h3>
+              <h3 className="ud-subheading">{t('ud_my_reports')}</h3>
               <div className="ud-incident-list">
                 {myIncidents.map(inc => (
                   <div key={inc.id} className="ud-incident-item">
@@ -227,7 +227,7 @@ function UserDashboard() {
                       {inc.description && <p className="ud-inc-desc">{inc.description}</p>}
                       {inc.technician_notes && (
                         <div className="ud-inc-tech-notes">
-                          ✅ <strong>{t('incident_tech_notes')}:</strong> {inc.technician_notes}
+                          <strong>{t('incident_tech_notes')}:</strong> {inc.technician_notes}
                         </div>
                       )}
                     </div>
@@ -301,7 +301,7 @@ function UserDashboard() {
         <div className="modal-overlay" onClick={() => setReportModal(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>⚠️ {t('incident_report_title')}</h2>
+              <h2>{t('incident_report_title')}</h2>
               <button className="modal-close" onClick={() => setReportModal(false)}>&times;</button>
             </div>
             <form onSubmit={handleReportSubmit}>
@@ -344,7 +344,7 @@ function UserDashboard() {
 
                 {/* Photo of defect */}
                 <div className="form-group">
-                  <label>📸 {t('incident_attach_photo')}</label>
+                  <label>{t('incident_attach_photo')}</label>
                   <input
                     type="file"
                     accept="image/*"
@@ -358,7 +358,7 @@ function UserDashboard() {
                       className="btn btn-sm btn-outline"
                       onClick={() => fileInputRef.current?.click()}
                     >
-                      📁 {reportForm.image_url ? t('btn_edit') : t('incident_attach_photo')}
+                      {reportForm.image_url ? t('btn_edit') : t('incident_attach_photo')}
                     </button>
                     {reportForm.image_url && (
                       <button
@@ -366,7 +366,7 @@ function UserDashboard() {
                         className="btn btn-sm btn-danger"
                         onClick={() => setReportForm({ ...reportForm, image_url: '' })}
                       >
-                        🗑 {t('incident_photo_remove')}
+                        {t('incident_photo_remove')}
                       </button>
                     )}
                   </div>
@@ -390,7 +390,7 @@ function UserDashboard() {
                   className="btn btn-primary"
                   disabled={submittingReport || !reportForm.title.trim()}
                 >
-                  {submittingReport ? '...' : `🚀 ${t('btn_confirm')}`}
+                  {submittingReport ? '...' : t('btn_confirm')}
                 </button>
               </div>
             </form>

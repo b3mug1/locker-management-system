@@ -374,16 +374,16 @@ async def auto_assign_lockers(
         # Generate human-readable AI justification
         if tier == 1:
             tier_1_c += 1
-            reason = f"⭐ Уровень 1 (Льгота: {student.inclusive_status}): выделен доступный шкафчик на этаже {best_locker.floor}."
+            reason = f"Уровень 1 (Льгота: {student.inclusive_status}): выделен доступный шкафчик на этаже {best_locker.floor}."
         elif tier == 2:
             tier_2_c += 1
-            reason = f"🚀 Уровень 2 (Активность: {item['activity_score']}/100): приоритетный подбор локера №{best_locker.number} (этаж {best_locker.floor})."
+            reason = f"Уровень 2 (Активность: {item['activity_score']}/100): приоритетный подбор локера №{best_locker.number} (этаж {best_locker.floor})."
         elif tier == 3:
             tier_3_c += 1
-            reason = f"🎓 Уровень 3 (GPA: {item['gpa']:.2f}): академическое превосходство, локер №{best_locker.number} (этаж {best_locker.floor})."
+            reason = f"Уровень 3 (GPA: {item['gpa']:.2f}): академическое превосходство, локер №{best_locker.number} (этаж {best_locker.floor})."
         else:
             tier_4_c += 1
-            reason = f"👥 Уровень 4 (Общий поток): оптимальное распределение по этажу {best_locker.floor} и группе {student.group}."
+            reason = f"Уровень 4 (Общий поток): оптимальное распределение по этажу {best_locker.floor} и группе {student.group}."
 
         items.append({
             "student_id": student.id,

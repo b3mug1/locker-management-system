@@ -99,7 +99,7 @@ export default function TechnicianDashboard() {
     <div className="page technician-page">
       <div className="dash-hero">
         <div className="dash-hero-content">
-          <h1>🛠️ {t('tech_dashboard_title')}</h1>
+          <h1>{t('tech_dashboard_title')}</h1>
           <p className="dash-hero-subtitle">{t('tech_dashboard_subtitle')}</p>
         </div>
         <div className="dash-hero-stats">
@@ -153,7 +153,7 @@ export default function TechnicianDashboard() {
         <div className="loading">{t('incidents_loading')}</div>
       ) : filteredTasks.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-state-icon">🔧</div>
+          <div className="empty-state-icon">Info</div>
           <p>{t('tech_no_tasks')}</p>
         </div>
       ) : (
@@ -182,7 +182,7 @@ export default function TechnicianDashboard() {
                   </span>
                   {task.created_by_name && (
                     <span className="tech-reporter">
-                      👤 {t('incident_reporter')}: <strong>{task.created_by_name}</strong>
+                      {t('incident_reporter')}: <strong>{task.created_by_name}</strong>
                     </span>
                   )}
                 </div>
@@ -200,13 +200,13 @@ export default function TechnicianDashboard() {
                       onClick={() => setSelectedPhoto(task.image_url)}
                       title={t('incident_photo_click_zoom')}
                     />
-                    <span className="tech-photo-hint">📸 {t('tech_view_photo')}</span>
+                    <span className="tech-photo-hint">{t('tech_view_photo')}</span>
                   </div>
                 )}
 
                 {task.technician_notes && (
                   <div className="tech-notes-box">
-                    <strong>📋 {t('incident_tech_notes')}:</strong>
+                    <strong>{t('incident_tech_notes')}:</strong>
                     <p>{task.technician_notes}</p>
                   </div>
                 )}
@@ -218,7 +218,7 @@ export default function TechnicianDashboard() {
                     className="btn btn-primary btn-block"
                     onClick={() => handleStartRepair(task.id)}
                   >
-                    ▶️ {t('incident_start_repair')}
+                    {t('incident_start_repair')}
                   </button>
                 ) : null}
 
@@ -227,13 +227,13 @@ export default function TechnicianDashboard() {
                     className="btn btn-success btn-block"
                     onClick={() => handleOpenResolveModal(task)}
                   >
-                    ✅ {t('incident_resolve_repair')}
+                    {t('incident_resolve_repair')}
                   </button>
                 ) : null}
 
                 {task.status === 'resolved' ? (
                   <div className="tech-completed-stamp">
-                    ✅ {t('incident_status_resolved')} ({new Date(task.resolved_at || task.created_at).toLocaleDateString()})
+                    {t('incident_status_resolved')} ({new Date(task.resolved_at || task.created_at).toLocaleDateString()})
                   </div>
                 ) : null}
               </div>
@@ -259,7 +259,7 @@ export default function TechnicianDashboard() {
         <div className="modal-overlay" onClick={() => setResolveModal({ open: false, task: null, notes: '' })}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>✅ {t('incident_resolve_modal_title')}</h2>
+              <h2>{t('incident_resolve_modal_title')}</h2>
               <button
                 className="modal-close"
                 onClick={() => setResolveModal({ open: false, task: null, notes: '' })}
@@ -297,7 +297,7 @@ export default function TechnicianDashboard() {
                   className="btn btn-success"
                   disabled={submitting || !resolveModal.notes.trim()}
                 >
-                  {submitting ? '...' : `✅ ${t('incident_resolve_repair')}`}
+                  {submitting ? '...' : t('incident_resolve_repair')}
                 </button>
               </div>
             </form>

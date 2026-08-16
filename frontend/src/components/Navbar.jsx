@@ -152,7 +152,7 @@ function Navbar() {
         {user?.role === 'technician' && (
           <>
             <NavLink to="/technician-tasks" className={navClass}>
-              🛠️ {t('nav_tech_workspace')}
+              {t('nav_tech_workspace')}
             </NavLink>
             <NavLink to="/incidents" className={navClass}>
               <Wrench size={15} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
@@ -187,7 +187,7 @@ function Navbar() {
           onClick={() => switchLang(lang === 'en' ? 'ru' : 'en')}
           title={lang === 'en' ? 'Русский' : 'English'}
         >
-          {lang === 'en' ? '🇷🇺' : '🇬🇧'}
+          {lang === 'en' ? 'RU' : 'EN'}
         </button>
 
         <button

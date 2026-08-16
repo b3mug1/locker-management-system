@@ -202,7 +202,7 @@ function IncidentsPage() {
     <div className="page">
       <div className="page-header">
         <div>
-          <h1>🛠️ {t('incidents_title')}</h1>
+          <h1>{t('incidents_title')}</h1>
           <p className="page-subtitle">{t('tech_dashboard_subtitle')}</p>
         </div>
         <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
@@ -278,7 +278,7 @@ function IncidentsPage() {
 
             {/* Defect Photo Attachment */}
             <div className="form-group">
-              <label>📸 {t('incident_attach_photo')}</label>
+              <label>{t('incident_attach_photo')}</label>
               <input
                 type="file"
                 accept="image/*"
@@ -292,7 +292,7 @@ function IncidentsPage() {
                   className="btn btn-sm btn-outline"
                   onClick={() => fileInputRef.current?.click()}
                 >
-                  📁 {form.image_url ? t('btn_edit') : t('incident_attach_photo')}
+                  {form.image_url ? t('btn_edit') : t('incident_attach_photo')}
                 </button>
                 {form.image_url && (
                   <button
@@ -300,7 +300,7 @@ function IncidentsPage() {
                     className="btn btn-sm btn-danger"
                     onClick={() => setForm({ ...form, image_url: '' })}
                   >
-                    🗑 {t('incident_photo_remove')}
+                    {t('incident_photo_remove')}
                   </button>
                 )}
               </div>
@@ -339,7 +339,7 @@ function IncidentsPage() {
           <thead>
             <tr>
               <th>{t('incidents_locker')}</th>
-              <th>📸 Фото</th>
+              <th>Фото</th>
               <th>{t('incidents_type')}</th>
               <th>{t('incidents_item_title')}</th>
               <th>{t('incidents_status')}</th>
@@ -374,7 +374,7 @@ function IncidentsPage() {
                   {i.description && <div className="text-muted" style={{ fontSize: '0.85rem' }}>{i.description}</div>}
                   {i.technician_notes && (
                     <div className="tech-report-snippet">
-                      🔧 <em>{i.technician_notes}</em>
+                      <em>{i.technician_notes}</em>
                     </div>
                   )}
                 </td>
@@ -385,13 +385,13 @@ function IncidentsPage() {
                 </td>
                 <td>
                   {i.assigned_technician_email ? (
-                    <span className="tech-badge">🛠️ {i.assigned_technician_email.split('@')[0]}</span>
+                    <span className="tech-badge">{i.assigned_technician_email.split('@')[0]}</span>
                   ) : (
                     <button
                       className="btn btn-xs btn-outline"
                       onClick={() => openAssign(i)}
                     >
-                      + {t('incident_assign_btn')}
+                      {t('incident_assign_btn')}
                     </button>
                   )}
                 </td>
@@ -399,7 +399,7 @@ function IncidentsPage() {
                 <td>
                   <div className="table-actions">
                     <button className="btn btn-sm btn-outline" onClick={() => openAssign(i)} title={t('incident_assign_btn')}>
-                      👨‍🔧
+                      Assign
                     </button>
                     <button className="btn btn-sm btn-outline" onClick={() => edit(i)}>
                       {t('btn_edit')}
@@ -421,7 +421,7 @@ function IncidentsPage() {
         <div className="modal-overlay" onClick={() => setAssignModal({ open: false, incident: null, technicianId: '' })}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>👨‍🔧 {t('incident_assign_modal_title')}</h2>
+              <h2>{t('incident_assign_modal_title')}</h2>
               <button className="modal-close" onClick={() => setAssignModal({ open: false, incident: null, technicianId: '' })}>&times;</button>
             </div>
             <form onSubmit={handleConfirmAssign}>

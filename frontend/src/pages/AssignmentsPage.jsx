@@ -202,11 +202,11 @@ function AssignmentsPage() {
       const res = await geminiAllocate({ commit: false, instruction: geminiInstruction });
       setGeminiPlan(res.data);
       setShowGeminiInput(false);
-      if (res.data.planned === 0) setSuccess('✨ Gemini: все студенты уже распределены.');
+      if (res.data.planned === 0) setSuccess('Gemini: все студенты уже распределены.');
     } catch (err) {
       const detail = err.response?.data?.detail || 'Ошибка Gemini API';
       if (detail.includes('GEMINI_API_KEY')) {
-        setError('⚠️ Gemini API ключ не настроен. Добавьте GEMINI_API_KEY в backend/.env и перезапустите сервер.');
+        setError('Gemini API ключ не настроен. Добавьте GEMINI_API_KEY в backend/.env и перезапустите сервер.');
       } else {
         setError(`Gemini: ${detail}`);
       }
@@ -220,7 +220,7 @@ function AssignmentsPage() {
     if (planned === 0) return;
     setConfirmModal({
       open: true,
-      title: '✨ Применить распределение Gemini?',
+      title: 'Применить распределение Gemini?',
       message: `Gemini предлагает назначить ${planned} студентов. Подтвердить?`,
       variant: 'warning',
       confirmText: 'Применить',
@@ -229,7 +229,7 @@ function AssignmentsPage() {
         setError(''); setSuccess('');
         try {
           const res = await geminiAllocate({ commit: true, instruction: geminiInstruction });
-          setSuccess(`✨ Gemini успешно распределил ${res.data.created} студентов!`);
+          setSuccess(`Gemini успешно распределил ${res.data.created} студентов!`);
           setGeminiPlan(null);
           fetchAll();
         } catch (err) {
@@ -256,7 +256,7 @@ function AssignmentsPage() {
       setChatMessages(prev => [...prev, { role: 'model', text: res.data.reply }]);
     } catch (err) {
       const detail = err.response?.data?.detail || 'Ошибка';
-      setChatMessages(prev => [...prev, { role: 'model', text: `⚠️ ${detail}` }]);
+      setChatMessages(prev => [...prev, { role: 'model', text: `${detail}` }]);
     } finally {
       setChatLoading(false);
     }
@@ -289,7 +289,7 @@ function AssignmentsPage() {
 
           {/* Classic AI */}
           <button className="btn btn-ai-primary" onClick={handleAutoAssignPreview} disabled={aiLoading}>
-            {aiLoading ? '🤖 Расчёт...' : t('ai_preview_btn')}
+            {aiLoading ? 'Расчёт...' : t('ai_preview_btn')}
           </button>
 
           {/* Gemini AI */}
@@ -298,7 +298,7 @@ function AssignmentsPage() {
             onClick={() => setShowGeminiInput(v => !v)}
             disabled={geminiLoading}
           >
-            {geminiLoading ? '✨ Gemini думает...' : '✨ Gemini ИИ'}
+            {geminiLoading ? 'Gemini думает...' : 'Gemini ИИ'}
           </button>
 
           <button
@@ -318,7 +318,7 @@ function AssignmentsPage() {
       {/* ─── Gemini Instruction Input ─────────────────────────────────── */}
       {showGeminiInput && (
         <div className="gemini-instruction-bar">
-          <div className="gemini-instruction-icon">✨</div>
+          <div className="gemini-instruction-icon">AI</div>
           <input
             type="text"
             className="gemini-instruction-input"
@@ -348,7 +348,7 @@ function AssignmentsPage() {
         <div className={`ai-preview-card ${activeTab === 'gemini' ? 'ai-preview-card--gemini' : ''}`}>
           <div className="ai-preview-header">
             <div className="ai-preview-title-wrap">
-              <h2>{activeTab === 'gemini' ? '✨ Gemini AI Allocation' : `🤖 ${t('ai_auto_title')}`}</h2>
+              <h2>{activeTab === 'gemini' ? 'Gemini AI Allocation' : t('ai_auto_title')}</h2>
               <span className={`badge-ai-pulse ${activeTab === 'gemini' ? 'badge-gemini-pulse' : ''}`}>
                 {activeTab === 'gemini' ? 'Gemini 1.5 Flash' : 'AI Algorithm Active'}
               </span>
@@ -362,7 +362,7 @@ function AssignmentsPage() {
                 onClick={activeTab === 'gemini' ? handleGeminiApply : handleAutoAssignApply}
                 disabled={!currentPlan?.planned}
               >
-                ⚡ Применить ({currentPlan.planned})
+                Применить ({currentPlan.planned})
               </button>
               <button className="btn btn-sm btn-outline" onClick={() => { setAutoAssignPlan(null); setGeminiPlan(null); }}>
                 {t('auto_hide')}
@@ -373,28 +373,28 @@ function AssignmentsPage() {
           {/* Tier stats */}
           <div className="ai-stats-row">
             <div className="ai-stat-pill pill-tier-1">
-              <span className="pill-icon">⭐</span>
+              <span className="pill-icon">I</span>
               <div className="pill-info">
                 <span className="pill-val">{currentPlan.tier_1_count || 0}</span>
                 <span className="pill-lbl">{t('ai_tier_1')}</span>
               </div>
             </div>
             <div className="ai-stat-pill pill-tier-2">
-              <span className="pill-icon">🚀</span>
+              <span className="pill-icon">II</span>
               <div className="pill-info">
                 <span className="pill-val">{currentPlan.tier_2_count || 0}</span>
                 <span className="pill-lbl">{t('ai_tier_2')}</span>
               </div>
             </div>
             <div className="ai-stat-pill pill-tier-3">
-              <span className="pill-icon">🎓</span>
+              <span className="pill-icon">III</span>
               <div className="pill-info">
                 <span className="pill-val">{currentPlan.tier_3_count || 0}</span>
                 <span className="pill-lbl">{t('ai_tier_3')}</span>
               </div>
             </div>
             <div className="ai-stat-pill pill-tier-4">
-              <span className="pill-icon">👥</span>
+              <span className="pill-icon">IV</span>
               <div className="pill-info">
                 <span className="pill-val">{currentPlan.tier_4_count || 0}</span>
                 <span className="pill-lbl">{t('ai_tier_4')}</span>
@@ -408,7 +408,7 @@ function AssignmentsPage() {
 
           {activeTab === 'gemini' && currentPlan.insights && (
             <div className="gemini-insights-box">
-              <span className="gemini-insights-icon">💡</span>
+              <span className="gemini-insights-icon">Info:</span>
               <p>{currentPlan.insights}</p>
             </div>
           )}
@@ -436,8 +436,8 @@ function AssignmentsPage() {
                     <td><strong>{item.student_name}</strong></td>
                     <td><span className="badge badge-light">{item.student_group}</span></td>
                     <td>
-                      <span className="metric-pill" title="Активность">⚡ {item.activity_score}</span>
-                      <span className="metric-pill" title="GPA">🎓 {item.gpa?.toFixed(2)}</span>
+                      <span className="metric-pill" title="Активность">Act: {item.activity_score}</span>
+                      <span className="metric-pill" title="GPA">GPA: {item.gpa?.toFixed(2)}</span>
                     </td>
                     <td>
                       <strong>#{item.locker_number}</strong>
@@ -475,7 +475,7 @@ function AssignmentsPage() {
                   <option value="">{t('assign_select_student')}</option>
                   {students.map((s) => (
                     <option key={s.id} value={s.id}>
-                      {s.inclusive_status && s.inclusive_status !== 'none' ? '⭐ ' : ''}{s.full_name} ({s.group})
+                      {s.inclusive_status && s.inclusive_status !== 'none' ? '(Priority) ' : ''}{s.full_name} ({s.group})
                     </option>
                   ))}
                 </select>
@@ -581,14 +581,14 @@ function AssignmentsPage() {
           onClick={() => setChatOpen(v => !v)}
           title="Gemini AI Ассистент"
         >
-          {chatOpen ? '✕' : '✨'}
+          {chatOpen ? '✕' : 'AI'}
           {!chatOpen && <span className="gemini-chat-toggle-label">AI Ассистент</span>}
         </button>
 
         {chatOpen && (
           <div className="gemini-chat-panel">
             <div className="gemini-chat-header">
-              <span className="gemini-chat-title">✨ Gemini AI Ассистент</span>
+              <span className="gemini-chat-title">Gemini AI Ассистент</span>
               <span className="gemini-model-tag">gemini-1.5-flash</span>
             </div>
             <div className="gemini-chat-messages">
