@@ -20,6 +20,7 @@ function AssignmentsPage() {
   const csvInputRef = useRef(null);
   const [importStatus, setImportStatus] = useState(null);
   const [autoAssignPlan, setAutoAssignPlan] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
 
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -29,7 +30,7 @@ function AssignmentsPage() {
   const [pageSize, setPageSize] = useState(10);
 
   const handleSort = (col) => { if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortCol(col); setSortDir('asc'); } };
-  const sortIcon = (col) => { if (sortCol !== col) return ' \u2195'; return sortDir === 'asc' ? ' \u2191' : ' \u2193'; };
+  const sortIcon = (col) => { if (sortCol !== col) return ' ⇅'; return sortDir === 'asc' ? ' ↑' : ' ↓'; };
 
   const fetchAll = useCallback(async () => {
     try {
@@ -122,7 +123,7 @@ function AssignmentsPage() {
     });
   };
 
-  const formatDate = (d) => d ? new Date(d).toLocaleString() : '\u2014';
+  const formatDate = (d) => d ? new Date(d).toLocaleString() : '—';
   const clearFilters = () => { setSearch(''); setFilterStatus(''); setSortCol(''); };
   const hasFilters = search || filterStatus;
 
@@ -135,13 +136,15 @@ function AssignmentsPage() {
   };
 
   const handleAutoAssignPreview = async () => {
-    setError(''); setSuccess('');
+    setError(''); setSuccess(''); setAiLoading(true);
     try {
       const res = await autoAssignLockers({ commit: false });
       setAutoAssignPlan(res.data);
       if (res.data.planned === 0) setSuccess(t('auto_empty'));
     } catch (err) {
       setError(err.response?.data?.detail || t('auto_preview_failed'));
+    } finally {
+      setAiLoading(false);
     }
   };
 
@@ -169,17 +172,32 @@ function AssignmentsPage() {
     });
   };
 
+  const tierBadgeClass = (tier) => {
+    switch (tier) {
+      case 1: return 'badge-tier-1';
+      case 2: return 'badge-tier-2';
+      case 3: return 'badge-tier-3';
+      default: return 'badge-tier-4';
+    }
+  };
+
   if (loading) return <div className="loading">{t('assign_loading')}</div>;
 
   return (
     <div className="page">
       <div className="page-header">
-        <h1>{t('assign_title')}</h1>
+        <div>
+          <h1>{t('assign_title')}</h1>
+          <p className="page-subtitle">{t('ai_auto_desc')}</p>
+        </div>
         <div className="page-header-actions">
           <button className="btn btn-outline" onClick={() => csvInputRef.current?.click()}>{t('csv_combined_import')}</button>
           <input type="file" accept=".csv" ref={csvInputRef} style={{ display: 'none' }} onChange={handleCSVImport} />
-          <button className="btn btn-outline" onClick={handleAutoAssignPreview}>{t('auto_preview')}</button>
-          <button className="btn btn-primary" onClick={handleAutoAssignApply} disabled={!autoAssignPlan?.planned}>{t('auto_apply')}</button>
+          
+          <button className="btn btn-ai-primary" onClick={handleAutoAssignPreview} disabled={aiLoading}>
+            {aiLoading ? '🤖 Расчёт...' : t('ai_preview_btn')}
+          </button>
+          
           <button
             className="btn btn-danger"
             onClick={handleReleaseAll}
@@ -203,33 +221,112 @@ function AssignmentsPage() {
         </div>
       )}
 
+      {/* AI Smart Auto-Assign Modal / Simulation Dashboard */}
       {autoAssignPlan && (
-        <div className="dashboard-card" style={{ marginBottom: '1rem' }}>
-          <div className="dashboard-card-header">
-            <h2>{t('auto_preview_title')}</h2>
-            <button className="btn btn-sm btn-outline" onClick={() => setAutoAssignPlan(null)}>{t('auto_hide')}</button>
+        <div className="ai-preview-card">
+          <div className="ai-preview-header">
+            <div className="ai-preview-title-wrap">
+              <h2>🤖 {t('ai_auto_title')}</h2>
+              <span className="badge badge-ai-pulse">AI Algorithm Active</span>
+            </div>
+            <div className="ai-header-actions">
+              <button
+                className="btn btn-success btn-sm"
+                onClick={handleAutoAssignApply}
+                disabled={!autoAssignPlan?.planned}
+              >
+                ⚡ {t('ai_apply_btn')} ({autoAssignPlan.planned})
+              </button>
+              <button className="btn btn-sm btn-outline" onClick={() => setAutoAssignPlan(null)}>
+                {t('auto_hide')}
+              </button>
+            </div>
           </div>
-          <p className="analytics-sub">
-            {t('auto_summary', { planned: autoAssignPlan.planned, spots: autoAssignPlan.available_spots, skipped: autoAssignPlan.skipped_students })}
+
+          <div className="ai-stats-row">
+            <div className="ai-stat-pill pill-tier-1">
+              <span className="pill-icon">⭐</span>
+              <div className="pill-info">
+                <span className="pill-val">{autoAssignPlan.tier_1_count || 0}</span>
+                <span className="pill-lbl">{t('ai_tier_1')}</span>
+              </div>
+            </div>
+            <div className="ai-stat-pill pill-tier-2">
+              <span className="pill-icon">🚀</span>
+              <div className="pill-info">
+                <span className="pill-val">{autoAssignPlan.tier_2_count || 0}</span>
+                <span className="pill-lbl">{t('ai_tier_2')}</span>
+              </div>
+            </div>
+            <div className="ai-stat-pill pill-tier-3">
+              <span className="pill-icon">🎓</span>
+              <div className="pill-info">
+                <span className="pill-val">{autoAssignPlan.tier_3_count || 0}</span>
+                <span className="pill-lbl">{t('ai_tier_3')}</span>
+              </div>
+            </div>
+            <div className="ai-stat-pill pill-tier-4">
+              <span className="pill-icon">👥</span>
+              <div className="pill-info">
+                <span className="pill-val">{autoAssignPlan.tier_4_count || 0}</span>
+                <span className="pill-lbl">{t('ai_tier_4')}</span>
+              </div>
+            </div>
+          </div>
+
+          <p className="ai-summary-text">
+            {t('ai_simulation_summary', { planned: autoAssignPlan.planned, spots: autoAssignPlan.available_spots, skipped: autoAssignPlan.skipped_students })}
           </p>
-          <div className="table-container">
+
+          <div className="table-container ai-table-scroll">
             <table>
-              <thead><tr><th>{t('assign_student')}</th><th>{t('students_group')}</th><th>{t('auto_priority')}</th><th>{t('assign_locker')}</th><th>{t('lockers_floor')}</th><th>{t('lockers_capacity')}</th></tr></thead>
+              <thead>
+                <tr>
+                  <th>Приоритет</th>
+                  <th>{t('assign_student')}</th>
+                  <th>{t('students_group')}</th>
+                  <th>Метрики</th>
+                  <th>{t('assign_locker')}</th>
+                  <th>{t('ai_reason_header')}</th>
+                </tr>
+              </thead>
               <tbody>
-                {autoAssignPlan.items.slice(0, 20).map(item => (
-                  <tr key={`${item.student_id}-${item.locker_id}`}>
-                    <td>{item.student_name}</td>
-                    <td><span className="badge">{item.student_group}</span></td>
-                    <td>{item.inclusive_status !== 'none' ? (t(`inclusive_${item.inclusive_status}`) === `inclusive_${item.inclusive_status}` ? item.inclusive_status : t(`inclusive_${item.inclusive_status}`)) : '—'}</td>
-                    <td><strong>{item.locker_number}</strong></td>
-                    <td>{item.locker_floor}</td>
-                    <td>{item.locker_occupied_before}/{item.locker_capacity}</td>
+                {autoAssignPlan.items.slice(0, 50).map((item, idx) => (
+                  <tr key={`${item.student_id}-${item.locker_id}-${idx}`}>
+                    <td>
+                      <span className={`badge ${tierBadgeClass(item.tier)}`}>
+                        {item.tier === 1 ? t('ai_tier_1_badge') : item.tier === 2 ? t('ai_tier_2_badge') : item.tier === 3 ? t('ai_tier_3_badge') : t('ai_tier_4_badge')}
+                      </span>
+                    </td>
+                    <td>
+                      <strong>{item.student_name}</strong>
+                    </td>
+                    <td><span className="badge badge-light">{item.student_group}</span></td>
+                    <td>
+                      <span className="metric-pill" title="Активность">⚡ {item.activity_score}</span>
+                      <span className="metric-pill" title="GPA">🎓 {item.gpa?.toFixed(2)}</span>
+                    </td>
+                    <td>
+                      <strong>#{item.locker_number}</strong>
+                      <span className="text-muted" style={{ display: 'block', fontSize: '0.8rem' }}>
+                        Этаж {item.locker_floor} ({item.locker_size})
+                      </span>
+                    </td>
+                    <td className="ai-reason-cell">
+                      <span className="ai-reason-badge">
+                        {item.ai_reason}
+                      </span>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          {autoAssignPlan.items.length > 20 && <p className="analytics-sub">{t('auto_showing_first')}</p>}
+          {autoAssignPlan.items.length > 50 && (
+            <p className="analytics-sub text-center" style={{ marginTop: '0.5rem' }}>
+              Показаны первые 50 из {autoAssignPlan.items.length} запланированных назначений.
+            </p>
+          )}
         </div>
       )}
 
@@ -253,9 +350,11 @@ function AssignmentsPage() {
                 <label>{t('assign_locker')}</label>
                 <select value={form.locker_id} onChange={(e) => setForm({ ...form, locker_id: e.target.value })} required>
                   <option value="">{t('assign_select_locker')}</option>
-                  {lockers
-                    .filter((l) => l.status === 'active' && (l.occupied_count || 0) < l.capacity)
-                    .map((l) => (<option key={l.id} value={l.id}>{l.number} ({t('lockers_floor')} {l.floor}, {l.size}, {l.occupied_count || 0}/{l.capacity})</option>))}
+                  {lockers.filter(l => l.status === 'active').map((l) => (
+                    <option key={l.id} value={l.id}>
+                      #{l.number} ({t('lockers_floor')} {l.floor}, {l.size})
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -268,8 +367,14 @@ function AssignmentsPage() {
       )}
 
       <div className="filter-bar">
-        <input type="text" className="search-input" placeholder={t('assign_search')} value={search} onChange={(e) => setSearch(e.target.value)} />
-        <select className="filter-select" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+        <input
+          type="text"
+          className="search-input"
+          placeholder={t('assign_search')}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <select className="filter-select" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
           <option value="">{t('assign_all_status')}</option>
           <option value="active">{t('assign_active')}</option>
           <option value="released">{t('assign_released_label')}</option>
@@ -279,27 +384,45 @@ function AssignmentsPage() {
 
       <div className="table-container">
         <table>
-          <thead><tr>
-            <th>#</th>
-            <th className="sortable" onClick={() => handleSort('student_name')}>{t('assign_student')}{sortIcon('student_name')}</th>
-            <th className="sortable" onClick={() => handleSort('locker_number')}>{t('assign_locker')}{sortIcon('locker_number')}</th>
-            <th className="sortable" onClick={() => handleSort('assigned_at')}>{t('assign_assigned_at')}{sortIcon('assigned_at')}</th>
-            <th className="sortable" onClick={() => handleSort('released_at')}>{t('assign_released_at')}{sortIcon('released_at')}</th>
-            <th className="sortable" onClick={() => handleSort('status')}>{t('assign_status')}{sortIcon('status')}</th>
-            <th>{t('assign_actions')}</th>
-          </tr></thead>
+          <thead>
+            <tr>
+              <th onClick={() => handleSort('student_name')} style={{ cursor: 'pointer' }}>
+                {t('assign_student')}{sortIcon('student_name')}
+              </th>
+              <th onClick={() => handleSort('locker_number')} style={{ cursor: 'pointer' }}>
+                {t('assign_locker')}{sortIcon('locker_number')}
+              </th>
+              <th onClick={() => handleSort('assigned_at')} style={{ cursor: 'pointer' }}>
+                {t('assign_assigned_at')}{sortIcon('assigned_at')}
+              </th>
+              <th onClick={() => handleSort('released_at')} style={{ cursor: 'pointer' }}>
+                {t('assign_released_at')}{sortIcon('released_at')}
+              </th>
+              <th onClick={() => handleSort('status')} style={{ cursor: 'pointer' }}>
+                {t('assign_status')}{sortIcon('status')}
+              </th>
+              <th>{t('assign_actions')}</th>
+            </tr>
+          </thead>
           <tbody>
-            {paginated.map((a, index) => (
-              <tr key={a.id} className={a.released_at ? 'row-released' : ''}>
-                <td>{(currentPage - 1) * pageSize + index + 1}</td>
-                <td>
-                  {(() => { const st = students.find(s => s.id === a.student_id); return st?.inclusive_status && st.inclusive_status !== 'none' ? <span>⭐ {a.student_name || `#${a.student_id}`}</span> : (a.student_name || `#${a.student_id}`); })()}
-                </td>
-                <td><strong>{a.locker_number || `#${a.locker_id}`}</strong></td>
+            {paginated.map((a) => (
+              <tr key={a.id}>
+                <td><strong>{a.student_name}</strong></td>
+                <td>#{a.locker_number}</td>
                 <td>{formatDate(a.assigned_at)}</td>
                 <td>{formatDate(a.released_at)}</td>
-                <td><span className={`status-badge ${a.released_at ? 'status-released' : 'status-active'}`}>{a.released_at ? t('assign_released_label') : t('assign_active')}</span></td>
-                <td>{!a.released_at && <button className="btn btn-sm btn-warning" onClick={() => handleRelease(a.id)}>{t('assign_release')}</button>}</td>
+                <td>
+                  <span className={`status-badge ${a.released_at ? 'status-released' : 'status-active'}`}>
+                    {a.released_at ? t('assign_released_label') : t('assign_active')}
+                  </span>
+                </td>
+                <td>
+                  {!a.released_at && (
+                    <button className="btn btn-sm btn-danger" onClick={() => handleRelease(a.id)}>
+                      {t('assign_release')}
+                    </button>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -307,27 +430,27 @@ function AssignmentsPage() {
         {filtered.length === 0 && <p className="empty">{t('assign_empty')}</p>}
       </div>
 
-      <div className="pagination-wrapper">
+      {totalPages > 1 && (
         <div className="pagination">
-          <button className="pagination-btn" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>&lsaquo;</button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1)
-            .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
-            .reduce((acc, p, idx, arr) => { if (idx > 0 && p - arr[idx - 1] > 1) acc.push('...'); acc.push(p); return acc; }, [])
-            .map((p, i) =>
-              p === '...' ? <span key={`dot-${i}`} className="pagination-dots">...</span> :
-              <button key={p} className={`pagination-btn ${currentPage === p ? 'active' : ''}`} onClick={() => setCurrentPage(p)}>{p}</button>
-            )}
-          <button className="pagination-btn" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>&rsaquo;</button>
+          <button className="btn btn-sm btn-outline" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>
+            ←
+          </button>
+          <span>{currentPage} / {totalPages}</span>
+          <button className="btn btn-sm btn-outline" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}>
+            →
+          </button>
         </div>
-        <div className="pagination-info">
-          <span>{t('results')}: {filtered.length === 0 ? 0 : (currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, filtered.length)} {t('of')} {filtered.length}</span>
-          <select className="page-size-select" value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))}>
-            <option value={10}>10</option><option value={25}>25</option><option value={50}>50</option><option value={100}>100</option>
-          </select>
-        </div>
-      </div>
+      )}
 
-      <ConfirmModal open={confirmModal.open} title={confirmModal.title} message={confirmModal.message} variant={confirmModal.variant} confirmText={confirmModal.confirmText} onConfirm={confirmModal.onConfirm} onCancel={() => setConfirmModal(m => ({ ...m, open: false }))} />
+      <ConfirmModal
+        open={confirmModal.open}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        variant={confirmModal.variant}
+        confirmText={confirmModal.confirmText}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal(m => ({ ...m, open: false }))}
+      />
     </div>
   );
 }
