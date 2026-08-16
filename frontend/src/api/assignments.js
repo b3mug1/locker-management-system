@@ -29,3 +29,10 @@ export const importCombinedCSV = (file) => {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 };
+
+// ── Gemini AI ──────────────────────────────────────────────────────────────
+export const geminiAllocate = (data) =>
+  api.post('/assignments/gemini-allocate', data);
+
+export const geminiChat = (message, history = [], context = {}) =>
+  api.post('/assignments/gemini-chat', { message, history, context });

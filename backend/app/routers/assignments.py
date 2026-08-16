@@ -575,3 +575,258 @@ async def import_combined_csv(
         "skipped": skipped,
         "errors": errors[:20],
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GEMINI AI ENDPOINTS
+# ─────────────────────────────────────────────────────────────────────────────
+
+from pydantic import BaseModel as _BaseModel
+
+
+class GeminiAllocateRequest(_BaseModel):
+    commit: bool = False
+    instruction: str = ""  # Optional admin instruction passed to Gemini
+
+
+class GeminiChatRequest(_BaseModel):
+    message: str
+    history: list[dict] = []
+    context: dict = {}
+
+
+@router.post("/gemini-allocate")
+async def gemini_allocate_lockers(
+    data: GeminiAllocateRequest,
+    db: AsyncSession = Depends(get_db),
+    current_admin: User = Depends(get_current_admin),
+):
+    """
+    Use Google Gemini AI to create an intelligent locker allocation plan.
+    If commit=False, returns a preview. If commit=True, saves to DB.
+    """
+    from app.services.gemini import gemini_allocate
+    from app.core.config import settings
+
+    if not settings.GEMINI_API_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="GEMINI_API_KEY is not configured. Add it to backend/.env and restart the server.",
+        )
+
+    # 1. Fetch unassigned students
+    active_student_ids = select(Assignment.student_id).where(Assignment.released_at.is_(None))
+    unassigned_students = list((await db.execute(
+        select(Student).where(~Student.id.in_(active_student_ids))
+    )).scalars().all())
+
+    # 2. Fetch active lockers with remaining capacity
+    active_counts = {
+        row.locker_id: row.count
+        for row in (await db.execute(
+            select(Assignment.locker_id, func.count(Assignment.id).label("count"))
+            .where(Assignment.released_at.is_(None))
+            .group_by(Assignment.locker_id)
+        )).all()
+    }
+    lockers = list((await db.execute(
+        select(Locker)
+        .where(Locker.status == "active")
+        .order_by(Locker.floor.asc(), Locker.number.asc())
+    )).scalars().all())
+
+    if not unassigned_students:
+        return {
+            "planned": 0, "created": 0, "items": [],
+            "summary": "Все студенты уже имеют активные назначения.",
+            "insights": "",
+            "tier_1_count": 0, "tier_2_count": 0, "tier_3_count": 0, "tier_4_count": 0,
+        }
+
+    # 3. Build payloads for Gemini (send only needed fields, keep prompt small)
+    student_payload = [
+        {
+            "id": s.id,
+            "full_name": s.full_name,
+            "group": s.group,
+            "course": s.course,
+            "inclusive_status": s.inclusive_status or "none",
+            "activity_score": getattr(s, "activity_score", 50) or 50,
+            "gpa": round(getattr(s, "gpa", 3.0) or 3.0, 2),
+        }
+        for s in unassigned_students
+    ]
+
+    locker_payload = [
+        {
+            "id": l.id,
+            "number": l.number,
+            "floor": l.floor,
+            "size": l.size,
+            "capacity": l.capacity,
+            "remaining_capacity": max(0, l.capacity - active_counts.get(l.id, 0)),
+        }
+        for l in lockers
+    ]
+
+    # 4. Call Gemini
+    try:
+        gemini_result = await gemini_allocate(
+            students=student_payload,
+            lockers=locker_payload,
+            extra_instruction=data.instruction,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Gemini API error: {exc}")
+
+    allocations = gemini_result.get("allocations", [])
+
+    # 5. Build lookup maps for response enrichment
+    student_map = {s.id: s for s in unassigned_students}
+    locker_map = {l.id: l for l in lockers}
+    remaining_by_locker = {
+        l.id: max(0, l.capacity - active_counts.get(l.id, 0)) for l in lockers
+    }
+
+    items = []
+    for alloc in allocations:
+        sid = alloc.get("student_id")
+        lid = alloc.get("locker_id")
+        s = student_map.get(sid)
+        l = locker_map.get(lid)
+        if not s or not l:
+            continue
+        if remaining_by_locker.get(lid, 0) <= 0:
+            continue  # Skip over-allocated lockers
+
+        remaining_by_locker[lid] -= 1
+        items.append({
+            "student_id": s.id,
+            "student_name": s.full_name,
+            "student_group": s.group,
+            "student_course": s.course,
+            "inclusive_status": s.inclusive_status or "none",
+            "activity_score": getattr(s, "activity_score", 50) or 50,
+            "gpa": round(getattr(s, "gpa", 3.0) or 3.0, 2),
+            "tier": alloc.get("tier", 4),
+            "tier_name": {1: "Льготная категория", 2: "Активный студент", 3: "Высокий GPA", 4: "Общий поток"}.get(alloc.get("tier", 4), "Общий поток"),
+            "ai_reason": alloc.get("reason", ""),
+            "locker_id": l.id,
+            "locker_number": l.number,
+            "locker_floor": l.floor,
+            "locker_size": l.size,
+            "locker_capacity": l.capacity,
+            "locker_occupied_before": l.capacity - remaining_by_locker[lid],
+            "source": "gemini",
+        })
+
+    tier_counts = gemini_result.get("tier_counts", {"1": 0, "2": 0, "3": 0, "4": 0})
+
+    # 6. Commit if requested
+    created = 0
+    if data.commit and items:
+        for it in items:
+            db.add(Assignment(student_id=it["student_id"], locker_id=it["locker_id"]))
+            created += 1
+        await db.flush()
+        await AuditLogService(db).create(
+            actor_id=current_admin.id,
+            action="gemini_auto_assign",
+            entity_type="assignment",
+            entity_id=None,
+            summary=f"Gemini AI assigned {created} students to lockers",
+            new_values={"assignments_count": created, "tier_counts": tier_counts},
+            commit=False,
+        )
+        await db.commit()
+        await manager.broadcast("assignment_change")
+        await manager.broadcast("locker_change")
+
+    return {
+        "planned": len(items),
+        "created": created,
+        "skipped_students": max(0, len(unassigned_students) - len(items)),
+        "available_spots": sum(max(0, v) for v in remaining_by_locker.values()),
+        "tier_1_count": int(tier_counts.get("1", 0)),
+        "tier_2_count": int(tier_counts.get("2", 0)),
+        "tier_3_count": int(tier_counts.get("3", 0)),
+        "tier_4_count": int(tier_counts.get("4", 0)),
+        "summary": gemini_result.get("summary", ""),
+        "insights": gemini_result.get("insights", ""),
+        "items": items,
+        "source": "gemini",
+    }
+
+
+@router.post("/gemini-chat")
+async def gemini_chat_endpoint(
+    data: GeminiChatRequest,
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+):
+    """
+    Conversational AI assistant — admin can ask anything about the locker system.
+    """
+    from app.services.gemini import gemini_chat
+    from app.core.config import settings
+
+    if not settings.GEMINI_API_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="GEMINI_API_KEY is not configured.",
+        )
+
+    # Build fresh context from DB if not provided
+    if not data.context:
+        total_students = (await db.execute(select(func.count(Student.id)))).scalar_one()
+        assigned_ids = select(Assignment.student_id).where(Assignment.released_at.is_(None))
+        unassigned_count = (await db.execute(
+            select(func.count(Student.id)).where(~Student.id.in_(assigned_ids))
+        )).scalar_one()
+
+        active_counts = {
+            row.locker_id: row.count
+            for row in (await db.execute(
+                select(Assignment.locker_id, func.count(Assignment.id).label("count"))
+                .where(Assignment.released_at.is_(None))
+                .group_by(Assignment.locker_id)
+            )).all()
+        }
+        lockers = list((await db.execute(select(Locker).where(Locker.status == "active"))).scalars().all())
+        available_spots = sum(max(0, l.capacity - active_counts.get(l.id, 0)) for l in lockers)
+        floors = sorted(set(l.floor for l in lockers))
+
+        unassigned_students = list((await db.execute(
+            select(Student).where(~Student.id.in_(assigned_ids))
+        )).scalars().all())
+
+        context = {
+            "total_students": total_students,
+            "unassigned_students": unassigned_count,
+            "total_lockers": len(lockers),
+            "available_spots": available_spots,
+            "floors": floors,
+            "tier_1_count": sum(1 for s in unassigned_students if s.inclusive_status and s.inclusive_status != "none"),
+            "tier_2_count": sum(1 for s in unassigned_students if (getattr(s, "activity_score", 0) or 0) >= 70 and (not s.inclusive_status or s.inclusive_status == "none")),
+            "tier_3_count": sum(1 for s in unassigned_students if (getattr(s, "gpa", 0) or 0) >= 3.4 and (getattr(s, "activity_score", 0) or 0) < 70 and (not s.inclusive_status or s.inclusive_status == "none")),
+            "tier_4_count": unassigned_count,
+        }
+    else:
+        context = data.context
+
+    try:
+        reply = await gemini_chat(
+            message=data.message,
+            history=data.history,
+            context=context,
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Gemini error: {exc}")
+
+    return {"reply": reply}

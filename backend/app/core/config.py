@@ -44,6 +44,10 @@ class Settings(BaseSettings):
     SMTP_FROM: str = ""        # defaults to SMTP_USER if empty
     SMTP_USE_TLS: bool = True  # True = STARTTLS on port 587; False = plain
 
+    # Gemini AI
+    GEMINI_API_KEY: str = ""
+    GEMINI_MODEL: str = "gemini-1.5-flash"
+
     @property
     def cors_origins(self) -> List[str]:
         try:

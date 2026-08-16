@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { getAssignments, assignLocker, releaseAssignment, releaseAllAssignments, importCombinedCSV, autoAssignLockers } from '../api/assignments';
+import { getAssignments, assignLocker, releaseAssignment, releaseAllAssignments, importCombinedCSV, autoAssignLockers, geminiAllocate, geminiChat } from '../api/assignments';
 import { getStudents } from '../api/students';
 import { getLockers } from '../api/lockers';
 import { useWebSocket } from '../hooks/useWebSocket';
@@ -19,9 +19,28 @@ function AssignmentsPage() {
   const [confirmModal, setConfirmModal] = useState({ open: false, title: '', message: '', variant: 'warning', confirmText: t('btn_confirm'), onConfirm: null });
   const csvInputRef = useRef(null);
   const [importStatus, setImportStatus] = useState(null);
+
+  // Classic 4-tier auto-assign
   const [autoAssignPlan, setAutoAssignPlan] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
 
+  // Gemini allocation
+  const [geminiPlan, setGeminiPlan] = useState(null);
+  const [geminiLoading, setGeminiLoading] = useState(false);
+  const [geminiInstruction, setGeminiInstruction] = useState('');
+  const [showGeminiInput, setShowGeminiInput] = useState(false);
+  const [activeTab, setActiveTab] = useState('classic'); // 'classic' | 'gemini'
+
+  // Gemini Chat
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState([
+    { role: 'model', text: '👋 Привет! Я Gemini AI. Задайте вопрос о распределении локеров или состоянии системы.' }
+  ]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatEndRef = useRef(null);
+
+  // Table state
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [sortCol, setSortCol] = useState('');
@@ -42,6 +61,9 @@ function AssignmentsPage() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
   useWebSocket({ assignment_change: fetchAll, locker_change: fetchAll, student_change: fetchAll });
+
+  // Scroll chat to bottom
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatMessages, chatOpen]);
 
   const filtered = useMemo(() => {
     let data = assignments;
@@ -135,8 +157,9 @@ function AssignmentsPage() {
     e.target.value = '';
   };
 
+  // ── Classic 4-tier auto-assign ──────────────────────────────────────────
   const handleAutoAssignPreview = async () => {
-    setError(''); setSuccess(''); setAiLoading(true);
+    setError(''); setSuccess(''); setAiLoading(true); setActiveTab('classic');
     try {
       const res = await autoAssignLockers({ commit: false });
       setAutoAssignPlan(res.data);
@@ -172,6 +195,73 @@ function AssignmentsPage() {
     });
   };
 
+  // ── Gemini allocation ───────────────────────────────────────────────────
+  const handleGeminiPreview = async () => {
+    setError(''); setSuccess(''); setGeminiLoading(true); setActiveTab('gemini');
+    try {
+      const res = await geminiAllocate({ commit: false, instruction: geminiInstruction });
+      setGeminiPlan(res.data);
+      setShowGeminiInput(false);
+      if (res.data.planned === 0) setSuccess('✨ Gemini: все студенты уже распределены.');
+    } catch (err) {
+      const detail = err.response?.data?.detail || 'Ошибка Gemini API';
+      if (detail.includes('GEMINI_API_KEY')) {
+        setError('⚠️ Gemini API ключ не настроен. Добавьте GEMINI_API_KEY в backend/.env и перезапустите сервер.');
+      } else {
+        setError(`Gemini: ${detail}`);
+      }
+    } finally {
+      setGeminiLoading(false);
+    }
+  };
+
+  const handleGeminiApply = () => {
+    const planned = geminiPlan?.planned || 0;
+    if (planned === 0) return;
+    setConfirmModal({
+      open: true,
+      title: '✨ Применить распределение Gemini?',
+      message: `Gemini предлагает назначить ${planned} студентов. Подтвердить?`,
+      variant: 'warning',
+      confirmText: 'Применить',
+      onConfirm: async () => {
+        setConfirmModal(m => ({ ...m, open: false }));
+        setError(''); setSuccess('');
+        try {
+          const res = await geminiAllocate({ commit: true, instruction: geminiInstruction });
+          setSuccess(`✨ Gemini успешно распределил ${res.data.created} студентов!`);
+          setGeminiPlan(null);
+          fetchAll();
+        } catch (err) {
+          setError(err.response?.data?.detail || 'Ошибка применения Gemini');
+        }
+      },
+    });
+  };
+
+  // ── Gemini Chat ─────────────────────────────────────────────────────────
+  const handleChatSend = async () => {
+    const msg = chatInput.trim();
+    if (!msg || chatLoading) return;
+    const newMessages = [...chatMessages, { role: 'user', text: msg }];
+    setChatMessages(newMessages);
+    setChatInput('');
+    setChatLoading(true);
+    try {
+      // Build Gemini history format
+      const history = chatMessages
+        .filter(m => m.role !== 'model' || chatMessages.indexOf(m) > 0)
+        .map(m => ({ role: m.role, parts: [m.text] }));
+      const res = await geminiChat(msg, history);
+      setChatMessages(prev => [...prev, { role: 'model', text: res.data.reply }]);
+    } catch (err) {
+      const detail = err.response?.data?.detail || 'Ошибка';
+      setChatMessages(prev => [...prev, { role: 'model', text: `⚠️ ${detail}` }]);
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
   const tierBadgeClass = (tier) => {
     switch (tier) {
       case 1: return 'badge-tier-1';
@@ -181,10 +271,13 @@ function AssignmentsPage() {
     }
   };
 
+  const currentPlan = activeTab === 'gemini' ? geminiPlan : autoAssignPlan;
+
   if (loading) return <div className="loading">{t('assign_loading')}</div>;
 
   return (
     <div className="page">
+      {/* ─── Header ─────────────────────────────────────────────────────── */}
       <div className="page-header">
         <div>
           <h1>{t('assign_title')}</h1>
@@ -193,11 +286,21 @@ function AssignmentsPage() {
         <div className="page-header-actions">
           <button className="btn btn-outline" onClick={() => csvInputRef.current?.click()}>{t('csv_combined_import')}</button>
           <input type="file" accept=".csv" ref={csvInputRef} style={{ display: 'none' }} onChange={handleCSVImport} />
-          
+
+          {/* Classic AI */}
           <button className="btn btn-ai-primary" onClick={handleAutoAssignPreview} disabled={aiLoading}>
             {aiLoading ? '🤖 Расчёт...' : t('ai_preview_btn')}
           </button>
-          
+
+          {/* Gemini AI */}
+          <button
+            className="btn btn-gemini"
+            onClick={() => setShowGeminiInput(v => !v)}
+            disabled={geminiLoading}
+          >
+            {geminiLoading ? '✨ Gemini думает...' : '✨ Gemini ИИ'}
+          </button>
+
           <button
             className="btn btn-danger"
             onClick={handleReleaseAll}
@@ -212,6 +315,25 @@ function AssignmentsPage() {
         </div>
       </div>
 
+      {/* ─── Gemini Instruction Input ─────────────────────────────────── */}
+      {showGeminiInput && (
+        <div className="gemini-instruction-bar">
+          <div className="gemini-instruction-icon">✨</div>
+          <input
+            type="text"
+            className="gemini-instruction-input"
+            placeholder="Дополнительные инструкции (необязательно): напр. «приоритет группе SE-2204», «только 1-й этаж»..."
+            value={geminiInstruction}
+            onChange={e => setGeminiInstruction(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleGeminiPreview()}
+          />
+          <button className="btn btn-gemini" onClick={handleGeminiPreview} disabled={geminiLoading}>
+            {geminiLoading ? 'Думает...' : 'Запустить Gemini'}
+          </button>
+          <button className="btn btn-outline btn-sm" onClick={() => setShowGeminiInput(false)}>✕</button>
+        </div>
+      )}
+
       {error && <div className="alert alert-error">{error}</div>}
       {success && <div className="alert alert-success">{success}</div>}
       {importStatus && (
@@ -221,62 +343,75 @@ function AssignmentsPage() {
         </div>
       )}
 
-      {/* AI Smart Auto-Assign Modal / Simulation Dashboard */}
-      {autoAssignPlan && (
-        <div className="ai-preview-card">
+      {/* ─── AI Preview Panel ─────────────────────────────────────────── */}
+      {currentPlan && (
+        <div className={`ai-preview-card ${activeTab === 'gemini' ? 'ai-preview-card--gemini' : ''}`}>
           <div className="ai-preview-header">
             <div className="ai-preview-title-wrap">
-              <h2>🤖 {t('ai_auto_title')}</h2>
-              <span className="badge badge-ai-pulse">AI Algorithm Active</span>
+              <h2>{activeTab === 'gemini' ? '✨ Gemini AI Allocation' : `🤖 ${t('ai_auto_title')}`}</h2>
+              <span className={`badge-ai-pulse ${activeTab === 'gemini' ? 'badge-gemini-pulse' : ''}`}>
+                {activeTab === 'gemini' ? 'Gemini 1.5 Flash' : 'AI Algorithm Active'}
+              </span>
+              {activeTab === 'gemini' && currentPlan.summary && (
+                <p className="gemini-summary-inline">{currentPlan.summary}</p>
+              )}
             </div>
             <div className="ai-header-actions">
               <button
-                className="btn btn-success btn-sm"
-                onClick={handleAutoAssignApply}
-                disabled={!autoAssignPlan?.planned}
+                className={`btn btn-sm ${activeTab === 'gemini' ? 'btn-gemini' : 'btn-success'}`}
+                onClick={activeTab === 'gemini' ? handleGeminiApply : handleAutoAssignApply}
+                disabled={!currentPlan?.planned}
               >
-                ⚡ {t('ai_apply_btn')} ({autoAssignPlan.planned})
+                ⚡ Применить ({currentPlan.planned})
               </button>
-              <button className="btn btn-sm btn-outline" onClick={() => setAutoAssignPlan(null)}>
+              <button className="btn btn-sm btn-outline" onClick={() => { setAutoAssignPlan(null); setGeminiPlan(null); }}>
                 {t('auto_hide')}
               </button>
             </div>
           </div>
 
+          {/* Tier stats */}
           <div className="ai-stats-row">
             <div className="ai-stat-pill pill-tier-1">
               <span className="pill-icon">⭐</span>
               <div className="pill-info">
-                <span className="pill-val">{autoAssignPlan.tier_1_count || 0}</span>
+                <span className="pill-val">{currentPlan.tier_1_count || 0}</span>
                 <span className="pill-lbl">{t('ai_tier_1')}</span>
               </div>
             </div>
             <div className="ai-stat-pill pill-tier-2">
               <span className="pill-icon">🚀</span>
               <div className="pill-info">
-                <span className="pill-val">{autoAssignPlan.tier_2_count || 0}</span>
+                <span className="pill-val">{currentPlan.tier_2_count || 0}</span>
                 <span className="pill-lbl">{t('ai_tier_2')}</span>
               </div>
             </div>
             <div className="ai-stat-pill pill-tier-3">
               <span className="pill-icon">🎓</span>
               <div className="pill-info">
-                <span className="pill-val">{autoAssignPlan.tier_3_count || 0}</span>
+                <span className="pill-val">{currentPlan.tier_3_count || 0}</span>
                 <span className="pill-lbl">{t('ai_tier_3')}</span>
               </div>
             </div>
             <div className="ai-stat-pill pill-tier-4">
               <span className="pill-icon">👥</span>
               <div className="pill-info">
-                <span className="pill-val">{autoAssignPlan.tier_4_count || 0}</span>
+                <span className="pill-val">{currentPlan.tier_4_count || 0}</span>
                 <span className="pill-lbl">{t('ai_tier_4')}</span>
               </div>
             </div>
           </div>
 
           <p className="ai-summary-text">
-            {t('ai_simulation_summary', { planned: autoAssignPlan.planned, spots: autoAssignPlan.available_spots, skipped: autoAssignPlan.skipped_students })}
+            {t('ai_simulation_summary', { planned: currentPlan.planned, spots: currentPlan.available_spots, skipped: currentPlan.skipped_students })}
           </p>
+
+          {activeTab === 'gemini' && currentPlan.insights && (
+            <div className="gemini-insights-box">
+              <span className="gemini-insights-icon">💡</span>
+              <p>{currentPlan.insights}</p>
+            </div>
+          )}
 
           <div className="table-container ai-table-scroll">
             <table>
@@ -291,16 +426,14 @@ function AssignmentsPage() {
                 </tr>
               </thead>
               <tbody>
-                {autoAssignPlan.items.slice(0, 50).map((item, idx) => (
+                {currentPlan.items.slice(0, 50).map((item, idx) => (
                   <tr key={`${item.student_id}-${item.locker_id}-${idx}`}>
                     <td>
                       <span className={`badge ${tierBadgeClass(item.tier)}`}>
                         {item.tier === 1 ? t('ai_tier_1_badge') : item.tier === 2 ? t('ai_tier_2_badge') : item.tier === 3 ? t('ai_tier_3_badge') : t('ai_tier_4_badge')}
                       </span>
                     </td>
-                    <td>
-                      <strong>{item.student_name}</strong>
-                    </td>
+                    <td><strong>{item.student_name}</strong></td>
                     <td><span className="badge badge-light">{item.student_group}</span></td>
                     <td>
                       <span className="metric-pill" title="Активность">⚡ {item.activity_score}</span>
@@ -313,7 +446,7 @@ function AssignmentsPage() {
                       </span>
                     </td>
                     <td className="ai-reason-cell">
-                      <span className="ai-reason-badge">
+                      <span className={`ai-reason-badge ${activeTab === 'gemini' ? 'ai-reason-badge--gemini' : ''}`}>
                         {item.ai_reason}
                       </span>
                     </td>
@@ -322,14 +455,15 @@ function AssignmentsPage() {
               </tbody>
             </table>
           </div>
-          {autoAssignPlan.items.length > 50 && (
+          {currentPlan.items.length > 50 && (
             <p className="analytics-sub text-center" style={{ marginTop: '0.5rem' }}>
-              Показаны первые 50 из {autoAssignPlan.items.length} запланированных назначений.
+              Показаны первые 50 из {currentPlan.items.length} назначений.
             </p>
           )}
         </div>
       )}
 
+      {/* ─── Manual Form ──────────────────────────────────────────────── */}
       {showForm && (
         <div className="form-card">
           <h3>{t('assign_form_title')}</h3>
@@ -366,6 +500,7 @@ function AssignmentsPage() {
         </div>
       )}
 
+      {/* ─── Filter Bar ───────────────────────────────────────────────── */}
       <div className="filter-bar">
         <input
           type="text"
@@ -382,6 +517,7 @@ function AssignmentsPage() {
         {hasFilters && <button className="btn btn-sm btn-outline" onClick={clearFilters}>{t('btn_clear')}</button>}
       </div>
 
+      {/* ─── Table ────────────────────────────────────────────────────── */}
       <div className="table-container">
         <table>
           <thead>
@@ -432,15 +568,67 @@ function AssignmentsPage() {
 
       {totalPages > 1 && (
         <div className="pagination">
-          <button className="btn btn-sm btn-outline" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>
-            ←
-          </button>
+          <button className="btn btn-sm btn-outline" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>←</button>
           <span>{currentPage} / {totalPages}</span>
-          <button className="btn btn-sm btn-outline" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}>
-            →
-          </button>
+          <button className="btn btn-sm btn-outline" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}>→</button>
         </div>
       )}
+
+      {/* ─── Gemini Chat Widget ──────────────────────────────────────── */}
+      <div className={`gemini-chat-widget ${chatOpen ? 'gemini-chat-widget--open' : ''}`}>
+        <button
+          className="gemini-chat-toggle"
+          onClick={() => setChatOpen(v => !v)}
+          title="Gemini AI Ассистент"
+        >
+          {chatOpen ? '✕' : '✨'}
+          {!chatOpen && <span className="gemini-chat-toggle-label">AI Ассистент</span>}
+        </button>
+
+        {chatOpen && (
+          <div className="gemini-chat-panel">
+            <div className="gemini-chat-header">
+              <span className="gemini-chat-title">✨ Gemini AI Ассистент</span>
+              <span className="gemini-model-tag">gemini-1.5-flash</span>
+            </div>
+            <div className="gemini-chat-messages">
+              {chatMessages.map((m, i) => (
+                <div key={i} className={`gemini-msg gemini-msg--${m.role}`}>
+                  <div className="gemini-msg-bubble">{m.text}</div>
+                </div>
+              ))}
+              {chatLoading && (
+                <div className="gemini-msg gemini-msg--model">
+                  <div className="gemini-msg-bubble gemini-thinking">
+                    <span />
+                    <span />
+                    <span />
+                  </div>
+                </div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+            <div className="gemini-chat-input-row">
+              <input
+                type="text"
+                className="gemini-chat-input"
+                placeholder="Спросите Gemini о локерах..."
+                value={chatInput}
+                onChange={e => setChatInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleChatSend()}
+                disabled={chatLoading}
+              />
+              <button
+                className="btn btn-gemini btn-sm"
+                onClick={handleChatSend}
+                disabled={chatLoading || !chatInput.trim()}
+              >
+                →
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
 
       <ConfirmModal
         open={confirmModal.open}
