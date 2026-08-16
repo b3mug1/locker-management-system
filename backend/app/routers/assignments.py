@@ -587,6 +587,7 @@ from pydantic import BaseModel as _BaseModel
 class GeminiAllocateRequest(_BaseModel):
     commit: bool = False
     instruction: str = ""  # Optional admin instruction passed to Gemini
+    lang: str = "ru"
 
 
 class GeminiChatRequest(_BaseModel):
@@ -611,7 +612,7 @@ async def gemini_allocate_lockers(
     if not settings.GEMINI_API_KEY:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="GEMINI_API_KEY is not configured. Add it to backend/.env and restart the server.",
+            detail="GEMINI_API_KEY is not configured. Add it to .env and restart the server.",
         )
 
     # 1. Fetch unassigned students
@@ -636,9 +637,10 @@ async def gemini_allocate_lockers(
     )).scalars().all())
 
     if not unassigned_students:
+        no_assign_msg = "All students already have active locker assignments." if data.lang == "en" else "Все студенты уже имеют активные назначения."
         return {
             "planned": 0, "created": 0, "items": [],
-            "summary": "Все студенты уже имеют активные назначения.",
+            "summary": no_assign_msg,
             "insights": "",
             "tier_1_count": 0, "tier_2_count": 0, "tier_3_count": 0, "tier_4_count": 0,
         }
@@ -675,6 +677,7 @@ async def gemini_allocate_lockers(
             students=student_payload,
             lockers=locker_payload,
             extra_instruction=data.instruction,
+            lang=data.lang,
         )
     except ValueError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
@@ -691,6 +694,10 @@ async def gemini_allocate_lockers(
     remaining_by_locker = {
         l.id: max(0, l.capacity - active_counts.get(l.id, 0)) for l in lockers
     }
+
+    tier_names_ru = {1: "Льготная категория", 2: "Активный студент", 3: "Высокий GPA", 4: "Общий поток"}
+    tier_names_en = {1: "Priority Category", 2: "Active Student", 3: "High GPA", 4: "General Stream"}
+    tier_name_dict = tier_names_en if data.lang == "en" else tier_names_ru
 
     items = []
     for alloc in allocations:
@@ -713,7 +720,7 @@ async def gemini_allocate_lockers(
             "activity_score": getattr(s, "activity_score", 50) or 50,
             "gpa": round(getattr(s, "gpa", 3.0) or 3.0, 2),
             "tier": alloc.get("tier", 4),
-            "tier_name": {1: "Льготная категория", 2: "Активный студент", 3: "Высокий GPA", 4: "Общий поток"}.get(alloc.get("tier", 4), "Общий поток"),
+            "tier_name": tier_name_dict.get(alloc.get("tier", 4), "General"),
             "ai_reason": alloc.get("reason", ""),
             "locker_id": l.id,
             "locker_number": l.number,

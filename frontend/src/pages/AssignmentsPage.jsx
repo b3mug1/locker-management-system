@@ -228,7 +228,7 @@ function AssignmentsPage() {
     setSuccess('');
     setGeminiLoading(true);
     try {
-      const res = await geminiAllocate({ commit: false, instruction: geminiInstruction });
+      const res = await geminiAllocate({ commit: false, instruction: geminiInstruction, lang });
       setGeminiPlan(res.data);
       if (res.data.planned === 0) {
         setSuccess(t('ai_already_all_assigned'));
@@ -259,7 +259,7 @@ function AssignmentsPage() {
         setError('');
         setSuccess('');
         try {
-          const res = await geminiAllocate({ commit: true, instruction: geminiInstruction });
+          const res = await geminiAllocate({ commit: true, instruction: geminiInstruction, lang });
           setSuccess(t('ai_commit_success_msg', { count: res.data.created }));
           setGeminiPlan(null);
           setGeminiInstruction('');
@@ -393,83 +393,88 @@ function AssignmentsPage() {
 
       {/* ─── AI Allocation Simulation Results ─────────────────────────────── */}
       {geminiPlan && (
-        <div className="ai-preview-card ai-preview-card--gemini">
-          <div className="ai-preview-header">
-            <div className="ai-preview-title-wrap">
-              <h2>{t('ai_sim_title')}</h2>
-              <span className="badge-ai-pulse badge-gemini-pulse">Gemini 1.5 Flash</span>
+        <div className="ai-simulation-card">
+          <div className="ai-sim-header">
+            <div className="ai-sim-title-group">
+              <div className="ai-sim-heading-row">
+                <h2>{t('ai_sim_title')}</h2>
+                <span className="badge-ai-model">Gemini Flash AI</span>
+              </div>
               {geminiPlan.summary && (
-                <p className="gemini-summary-inline">{geminiPlan.summary}</p>
+                <p className="ai-sim-summary">{geminiPlan.summary}</p>
               )}
             </div>
-            <div className="ai-header-actions">
+            <div className="ai-sim-actions">
               <button
-                className="btn btn-sm btn-gemini"
+                className="btn btn-primary"
                 onClick={handleGeminiApply}
                 disabled={!geminiPlan.planned}
               >
                 {t('ai_sim_commit_btn', { count: geminiPlan.planned })}
               </button>
-              <button className="btn btn-sm btn-outline" onClick={() => setGeminiPlan(null)}>
+              <button className="btn btn-outline" onClick={() => setGeminiPlan(null)}>
                 {t('ai_sim_hide_btn')}
               </button>
             </div>
           </div>
 
-          <div className="ai-stats-row">
-            <div className="ai-stat-pill pill-tier-1">
-              <span className="pill-icon">I</span>
-              <div className="pill-info">
-                <span className="pill-val">{geminiPlan.tier_1_count || 0}</span>
-                <span className="pill-lbl">{t('ai_tier_1')}</span>
+          {/* 4 Tier Stat Cards */}
+          <div className="ai-tier-stat-grid">
+            <div className="ai-tier-stat-box tier-box-1">
+              <div className="tier-box-badge">I</div>
+              <div className="tier-box-content">
+                <span className="tier-box-num">{geminiPlan.tier_1_count || 0}</span>
+                <span className="tier-box-label">{t('ai_tier_1')}</span>
               </div>
             </div>
-            <div className="ai-stat-pill pill-tier-2">
-              <span className="pill-icon">II</span>
-              <div className="pill-info">
-                <span className="pill-val">{geminiPlan.tier_2_count || 0}</span>
-                <span className="pill-lbl">{t('ai_tier_2')}</span>
+            <div className="ai-tier-stat-box tier-box-2">
+              <div className="tier-box-badge">II</div>
+              <div className="tier-box-content">
+                <span className="tier-box-num">{geminiPlan.tier_2_count || 0}</span>
+                <span className="tier-box-label">{t('ai_tier_2')}</span>
               </div>
             </div>
-            <div className="ai-stat-pill pill-tier-3">
-              <span className="pill-icon">III</span>
-              <div className="pill-info">
-                <span className="pill-val">{geminiPlan.tier_3_count || 0}</span>
-                <span className="pill-lbl">{t('ai_tier_3')}</span>
+            <div className="ai-tier-stat-box tier-box-3">
+              <div className="tier-box-badge">III</div>
+              <div className="tier-box-content">
+                <span className="tier-box-num">{geminiPlan.tier_3_count || 0}</span>
+                <span className="tier-box-label">{t('ai_tier_3')}</span>
               </div>
             </div>
-            <div className="ai-stat-pill pill-tier-4">
-              <span className="pill-icon">IV</span>
-              <div className="pill-info">
-                <span className="pill-val">{geminiPlan.tier_4_count || 0}</span>
-                <span className="pill-lbl">{t('ai_tier_4')}</span>
+            <div className="ai-tier-stat-box tier-box-4">
+              <div className="tier-box-badge">IV</div>
+              <div className="tier-box-content">
+                <span className="tier-box-num">{geminiPlan.tier_4_count || 0}</span>
+                <span className="tier-box-label">{t('ai_tier_4')}</span>
               </div>
             </div>
           </div>
 
-          <p className="ai-summary-text">
-            {t('ai_sim_summary_text', {
-              planned: geminiPlan.planned,
-              spots: geminiPlan.available_spots,
-              skipped: geminiPlan.skipped_students
-            })}
-          </p>
+          <div className="ai-sim-meta-row">
+            <span className="ai-sim-meta-text">
+              {t('ai_sim_summary_text', {
+                planned: geminiPlan.planned,
+                spots: geminiPlan.available_spots,
+                skipped: geminiPlan.skipped_students
+              })}
+            </span>
+          </div>
 
           {geminiPlan.insights && (
-            <div className="gemini-insights-box">
-              <span className="gemini-insights-icon">Info:</span>
+            <div className="ai-sim-insights-callout">
+              <span className="insights-tag">INFO</span>
               <p>{geminiPlan.insights}</p>
             </div>
           )}
 
-          <div className="table-container ai-table-scroll">
+          <div className="table-container ai-sim-table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>Приоритет</th>
+                  <th>{t('assign_col_priority')}</th>
                   <th>{t('assign_student')}</th>
                   <th>{t('students_group')}</th>
-                  <th>Метрики</th>
+                  <th>{t('assign_col_metrics')}</th>
                   <th>{t('assign_locker')}</th>
                   <th>{t('ai_reason_header')}</th>
                 </tr>
@@ -482,22 +487,26 @@ function AssignmentsPage() {
                         {item.tier === 1 ? t('ai_tier_1_badge') : item.tier === 2 ? t('ai_tier_2_badge') : item.tier === 3 ? t('ai_tier_3_badge') : t('ai_tier_4_badge')}
                       </span>
                     </td>
-                    <td><strong>{item.student_name}</strong></td>
+                    <td><strong className="sim-student-name">{item.student_name}</strong></td>
                     <td><span className="badge badge-light">{item.student_group}</span></td>
                     <td>
-                      <span className="metric-pill" title="Активность">Act: {item.activity_score}</span>
-                      <span className="metric-pill" title="GPA">GPA: {item.gpa?.toFixed(2)}</span>
+                      <div className="sim-metrics-group">
+                        <span className="metric-chip">Act: {item.activity_score}</span>
+                        <span className="metric-chip">GPA: {item.gpa?.toFixed(2)}</span>
+                      </div>
                     </td>
                     <td>
-                      <strong>#{item.locker_number}</strong>
-                      <span className="text-muted" style={{ display: 'block', fontSize: '0.8rem' }}>
-                        Этаж {item.locker_floor} ({item.locker_size})
-                      </span>
+                      <div className="sim-locker-cell">
+                        <strong>#{item.locker_number}</strong>
+                        <span className="sim-locker-sub">
+                          {t('analytics_floor')} {item.locker_floor} ({item.locker_size})
+                        </span>
+                      </div>
                     </td>
-                    <td className="ai-reason-cell">
-                      <span className="ai-reason-badge ai-reason-badge--gemini">
+                    <td className="sim-reason-cell">
+                      <div className="sim-reason-pill">
                         {item.ai_reason}
-                      </span>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -505,8 +514,11 @@ function AssignmentsPage() {
             </table>
           </div>
           {geminiPlan.items.length > 50 && (
-            <p className="analytics-sub text-center" style={{ marginTop: '0.5rem' }}>
-              Показаны первые 50 из {geminiPlan.items.length} назначений.
+            <p className="sim-pagination-note">
+              {t('assign_showing_first_n', {
+                count: Math.min(50, geminiPlan.items.length),
+                total: geminiPlan.items.length
+              })}
             </p>
           )}
         </div>

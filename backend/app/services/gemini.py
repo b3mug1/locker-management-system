@@ -64,40 +64,52 @@ def _classify_student(s: dict[str, Any]) -> int:
     return 4
 
 
-def _build_tier_reason(student: dict[str, Any], locker: dict[str, Any], tier: int) -> str:
-    """Generate concise Russian reason for assigned student."""
+def _build_tier_reason(student: dict[str, Any], locker: dict[str, Any], tier: int, lang: str = "ru") -> str:
+    """Generate concise localized reason for assigned student."""
     inc = student.get("inclusive_status")
     act = student.get("activity_score") or 0
     gpa = student.get("gpa") or 0.0
     group = student.get("group") or ""
     floor = locker.get("floor") or 1
 
-    if tier == 1:
-        return f"Приоритет 1 (льгота '{inc}'): выделен доступный шкафчик на 1 этаже."
-    elif tier == 2:
-        return f"Приоритет 2 (активность {act}): назначен приоритетный шкафчик на {floor} этаже."
-    elif tier == 3:
-        return f"Приоритет 3 (GPA {gpa:.2f}): шкафчик на {floor} этаже в соответствии с курсом."
+    if lang == "en":
+        if tier == 1:
+            return f"Priority 1 (inclusive status '{inc}'): allocated accessible locker on Floor 1."
+        elif tier == 2:
+            return f"Priority 2 (active user, score {act}): priority locker assigned on Floor {floor}."
+        elif tier == 3:
+            return f"Priority 3 (high GPA {gpa:.2f}): locker on Floor {floor} matching course year."
+        else:
+            return f"General stream: locker on Floor {floor} grouped with {group}."
     else:
-        return f"Общий поток: шкафчик на {floor} этаже рядом с группой {group}."
+        if tier == 1:
+            return f"Приоритет 1 (льгота '{inc}'): выделен доступный шкафчик на 1 этаже."
+        elif tier == 2:
+            return f"Приоритет 2 (активность {act}): назначен приоритетный шкафчик на {floor} этаже."
+        elif tier == 3:
+            return f"Приоритет 3 (GPA {gpa:.2f}): шкафчик на {floor} этаже в соответствии с курсом."
+        else:
+            return f"Общий поток: шкафчик на {floor} этаже рядом с группой {group}."
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # ALLOCATION
 # ─────────────────────────────────────────────────────────────────────────────
 
-STRATEGY_SYSTEM_PROMPT = """
+def _get_strategy_prompt(lang: str = "ru") -> str:
+    lang_name = "English" if lang == "en" else "Russian"
+    return f"""
 You are an intelligent university locker allocation strategist.
 Analyze the provided student cohorts, available locker capacity by floor, and admin instructions.
-Provide a high-level strategic summary, key insights, and special allocation policies.
+Provide a high-level strategic summary, key insights, and special allocation policies strictly in {lang_name}.
 
 OUTPUT: Return ONLY valid JSON matching this schema:
-{
-  "summary": "<2-3 sentence strategic summary in Russian about how students and tiers are distributed across floors>",
-  "insights": "<2-3 sentence strategic advice in Russian for campus administration on capacity, peak floors, and priority compliance>",
+{{
+  "summary": "<2-3 sentence strategic summary in {lang_name} about how students and tiers are distributed across floors>",
+  "insights": "<2-3 sentence strategic advice in {lang_name} for campus administration on capacity, peak floors, and priority compliance>",
   "tier_1_policy": "<Brief note on how inclusive students were prioritized on Floor 1>",
-  "special_decisions": ["<Decision 1 in Russian>", "<Decision 2 in Russian>"]
-}
+  "special_decisions": ["<Decision 1 in {lang_name}>", "<Decision 2 in {lang_name}>"]
+}}
 """
 
 
@@ -105,6 +117,7 @@ async def gemini_allocate(
     students: list[dict[str, Any]],
     lockers: list[dict[str, Any]],
     extra_instruction: str = "",
+    lang: str = "ru",
 ) -> dict[str, Any]:
     """
     Intelligent locker allocation combining Gemini's high-level strategy and
@@ -159,11 +172,13 @@ async def gemini_allocate(
         ]
     }
 
+    lang_instruction = f"Language: Generate output text strictly in {'English' if lang == 'en' else 'Russian'}."
     user_strategy_prompt = f"""
 Current System Snapshot:
 {json.dumps(stats_overview, ensure_ascii=False, indent=2)}
 
 {f"ADMIN INSTRUCTION: {extra_instruction}" if extra_instruction else ""}
+{lang_instruction}
 
 Please evaluate the allocation distribution and return your strategic plan in JSON format.
 """
@@ -179,11 +194,13 @@ Please evaluate the allocation distribution and return your strategic plan in JS
     seen = set()
     models_to_try = [m for m in candidate_models if m and not (m in seen or seen.add(m))]
 
+    strategy_prompt = _get_strategy_prompt(lang)
+
     for model_name in models_to_try:
         try:
             model = _get_client(model_name)
             response = model.generate_content(
-                [STRATEGY_SYSTEM_PROMPT, user_strategy_prompt],
+                [strategy_prompt, user_strategy_prompt],
                 generation_config={
                     "temperature": 0.3,
                     "max_output_tokens": 4096,
@@ -197,14 +214,27 @@ Please evaluate the allocation distribution and return your strategic plan in JS
             logger.warning("Gemini strategic guidance attempt with %s failed: %s", model_name, exc)
             continue
 
-    summary = (gemini_meta.get("summary") if gemini_meta else None) or (
-        f"ИИ успешно распределил студентов по 4 уровням приоритета: "
-        f"{len(tier_1_students)} льготных, {len(tier_2_students)} активных, {len(tier_3_students)} отличников."
-    )
-    insights = (gemini_meta.get("insights") if gemini_meta else None) or (
-        "Все студенты с особыми потребностями (Tier 1) гарантированно размещены на 1 этаже. "
-        "Остальные потоки распределены по этажам в соответствии с курсами и учебными группами."
-    )
+    if lang == "en":
+        default_summary = (
+            f"AI successfully allocated students across 4 priority tiers: "
+            f"{len(tier_1_students)} inclusive, {len(tier_2_students)} active, {len(tier_3_students)} academic excellence."
+        )
+        default_insights = (
+            "All inclusive students (Tier 1) are guaranteed accessible Floor 1 lockers. "
+            "Remaining streams are distributed across floors matching courses and cohort groups."
+        )
+    else:
+        default_summary = (
+            f"ИИ успешно распределил студентов по 4 уровням приоритета: "
+            f"{len(tier_1_students)} льготных, {len(tier_2_students)} активных, {len(tier_3_students)} отличников."
+        )
+        default_insights = (
+            "Все студенты с особыми потребностями (Tier 1) гарантированно размещены на 1 этаже. "
+            "Остальные потоки распределены по этажам в соответствии с курсами и учебными группами."
+        )
+
+    summary = (gemini_meta.get("summary") if gemini_meta else None) or default_summary
+    insights = (gemini_meta.get("insights") if gemini_meta else None) or default_insights
 
     # 4. Multi-tier locker matching algorithm
     # Create mutable remaining capacity tracker per locker
@@ -269,7 +299,7 @@ Please evaluate the allocation distribution and return your strategic plan in JS
         if group:
             group_floor_map[group] = assigned_locker.get("floor", target_floor)
 
-        reason = _build_tier_reason(s, assigned_locker, tier)
+        reason = _build_tier_reason(s, assigned_locker, tier, lang=lang)
 
         allocations.append({
             "student_id": s["id"],

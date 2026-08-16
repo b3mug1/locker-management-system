@@ -4183,237 +4183,283 @@ td .btn + .btn {
   color: var(--gray-800);
 }
 
-/* Gemini Simulation Result Cards */
-.ai-preview-card--gemini {
-  border-color: var(--primary-light);
-  box-shadow: 0 10px 30px -5px rgba(37, 99, 235, 0.08), var(--shadow-md);
-}
-
-.badge-gemini-pulse {
-  background: var(--primary-gradient);
-  color: #ffffff;
-  font-size: 0.675rem;
-  font-weight: 700;
-  padding: 0.2rem 0.55rem;
-  border-radius: var(--radius-full);
-  letter-spacing: 0.02em;
-}
-
-.gemini-summary-inline {
-  font-size: 0.8125rem;
-  color: var(--gray-500);
-  margin: 0.35rem 0 0 0;
-  font-weight: 500;
-  line-height: 1.4;
-}
-
-/* Strategic Insights Box */
-.gemini-insights-box {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.625rem;
-  background: var(--primary-light);
-  border: 1px solid rgba(37, 99, 235, 0.15);
-  border-left: 3px solid var(--primary);
-  border-radius: var(--radius-lg);
-  padding: 0.75rem 1rem;
-  margin-bottom: 1rem;
-  font-size: 0.8125rem;
-  color: var(--primary-hover);
-  line-height: 1.5;
-}
-
-[data-theme="dark"] .gemini-insights-box {
-  background: var(--primary-light);
-  border-color: rgba(37, 99, 235, 0.2);
-  border-left-color: var(--primary);
-  color: var(--primary);
-}
-
-.gemini-insights-icon {
-  font-size: 0.8125rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--primary);
-  flex-shrink: 0;
-}
-
-.gemini-insights-box p {
-  margin: 0;
-  font-weight: 500;
-}
-
-/* Gemini reasoning inline badges */
-.ai-reason-badge--gemini {
-  border-left-color: var(--primary);
-  background: var(--primary-light);
-  color: var(--primary-hover);
-}
-
-[data-theme="dark"] .ai-reason-badge--gemini {
-  background: var(--primary-light);
-  color: var(--primary);
-  border-left-color: var(--primary);
-}
-
-@media (max-width: 768px) {
-  .ai-allocation-card-header {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .ai-action-section {
-    width: 100%;
-  }
-  .ai-action-section button {
-    width: 100%;
-  }
-}
-
-
 /* ============================================================
    AI SMART ALLOCATION — matches system design
    ============================================================ */
 
-/* AI Auto-Assign Card */
-.ai-preview-card {
+/* AI Simulation Results Card — Premium Cohesive System Design */
+.ai-simulation-card {
   background: var(--white);
-  border: 1.5px solid var(--primary-light);
+  border: 1px solid var(--card-border);
   border-radius: var(--radius-xl);
   padding: 1.5rem;
-  margin-bottom: 1.5rem;
-  box-shadow: var(--shadow-md);
+  margin-bottom: 1.75rem;
+  box-shadow: var(--shadow-sm);
   animation: fadeIn 0.3s ease-out;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
 }
 
-[data-theme="dark"] .ai-preview-card {
-  background: var(--white);
-  border-color: var(--primary-light);
-}
-
-.ai-preview-header {
+.ai-sim-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   flex-wrap: wrap;
-  gap: 1rem;
-  margin-bottom: 1.25rem;
-  padding-bottom: 1rem;
+  gap: 1.25rem;
+  padding-bottom: 1.25rem;
   border-bottom: 1px solid var(--card-border);
 }
 
-.ai-preview-title-wrap {
+.ai-sim-title-group {
+  flex: 1;
+  min-width: 280px;
+}
+
+.ai-sim-heading-row {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  margin-bottom: 0.5rem;
 }
 
-.ai-preview-title-wrap h2 {
-  font-size: 1.125rem;
+.ai-sim-heading-row h2 {
+  font-size: 1.2rem;
   font-weight: 700;
   margin: 0;
   color: var(--gray-900);
   letter-spacing: -0.01em;
 }
 
-.badge-ai-pulse {
-  background: var(--primary-gradient);
-  color: #fff;
-  font-size: 0.675rem;
+.badge-ai-model {
+  display: inline-flex;
+  align-items: center;
+  background: var(--primary-light);
+  color: var(--primary);
+  font-size: 0.72rem;
   font-weight: 700;
-  padding: 0.2rem 0.55rem;
+  padding: 0.2rem 0.65rem;
   border-radius: var(--radius-full);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+  letter-spacing: 0.03em;
+  border: 1px solid var(--card-border);
 }
 
-.ai-header-actions {
+.ai-sim-summary {
+  font-size: 0.875rem;
+  color: var(--gray-600);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.ai-sim-actions {
   display: flex;
   gap: 0.5rem;
   align-items: center;
 }
 
-/* AI action button — uses system primary, not alien purple */
-.btn-ai-primary {
-  background: var(--primary);
-  color: #fff !important;
-  border-color: var(--primary);
-  font-weight: 600;
-  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.2);
+/* 4 Tier Stat Cards Grid */
+.ai-tier-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+.ai-tier-stat-box {
+  background: var(--gray-50);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.15rem;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
   transition: all var(--transition);
 }
 
-.btn-ai-primary:hover:not(:disabled) {
-  background: var(--primary-hover);
-  border-color: var(--primary-hover);
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
-  transform: translateY(-1px);
-}
-
-/* AI Stats Pills */
-.ai-stats-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-  gap: 0.75rem;
-  margin-bottom: 1.25rem;
-}
-
-.ai-stat-pill {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.875rem 1rem;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--card-border);
-  background: var(--gray-50);
-  transition: box-shadow var(--transition);
-}
-
-.ai-stat-pill:hover {
+.ai-tier-stat-box:hover {
+  transform: translateY(-2px);
   box-shadow: var(--shadow-sm);
 }
 
-[data-theme="dark"] .ai-stat-pill {
+[data-theme="dark"] .ai-tier-stat-box {
   background: var(--gray-100);
 }
 
-.pill-tier-1 { border-left: 3px solid var(--warning); }
-.pill-tier-2 { border-left: 3px solid var(--primary); }
-.pill-tier-3 { border-left: 3px solid var(--accent); }
-.pill-tier-4 { border-left: 3px solid var(--gray-400); }
+.tier-box-1 { border-top: 3px solid var(--warning); }
+.tier-box-2 { border-top: 3px solid var(--primary); }
+.tier-box-3 { border-top: 3px solid var(--accent); }
+.tier-box-4 { border-top: 3px solid var(--gray-400); }
 
-.pill-icon {
-  font-size: 1.25rem;
-  line-height: 1;
+.tier-box-badge {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.85rem;
+  flex-shrink: 0;
 }
 
-.pill-info {
+.tier-box-1 .tier-box-badge { background: var(--warning-light); color: #b45309; }
+.tier-box-2 .tier-box-badge { background: var(--primary-light); color: var(--primary); }
+.tier-box-3 .tier-box-badge { background: var(--accent-light); color: var(--accent); }
+.tier-box-4 .tier-box-badge { background: var(--gray-100); color: var(--gray-500); }
+
+[data-theme="dark"] .tier-box-1 .tier-box-badge { color: var(--warning); }
+[data-theme="dark"] .tier-box-2 .tier-box-badge { color: var(--primary); }
+[data-theme="dark"] .tier-box-3 .tier-box-badge { color: var(--accent); }
+[data-theme="dark"] .tier-box-4 .tier-box-badge { color: var(--gray-300); }
+
+.tier-box-content {
   display: flex;
   flex-direction: column;
-  gap: 0.125rem;
+  gap: 0.15rem;
+  min-width: 0;
 }
 
-.pill-val {
-  font-size: 1.375rem;
+.tier-box-num {
+  font-size: 1.45rem;
   font-weight: 800;
   color: var(--gray-900);
   line-height: 1;
   letter-spacing: -0.02em;
 }
 
-.pill-lbl {
-  font-size: 0.7rem;
+.tier-box-label {
+  font-size: 0.72rem;
   font-weight: 600;
   color: var(--gray-500);
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.ai-summary-text {
+.ai-sim-meta-row {
+  display: flex;
+  align-items: center;
+}
+
+.ai-sim-meta-text {
   font-size: 0.8125rem;
+  font-weight: 500;
   color: var(--gray-500);
-  margin-bottom: 1rem;
+}
+
+/* Strategic Insights Callout */
+.ai-sim-insights-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  background: var(--primary-light);
+  border: 1px solid var(--card-border);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius-lg);
+  padding: 0.85rem 1.15rem;
+  color: var(--gray-800);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+[data-theme="dark"] .ai-sim-insights-callout {
+  background: var(--primary-light);
+  color: var(--gray-200);
+}
+
+.insights-tag {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 800;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  color: var(--primary);
+  flex-shrink: 0;
+  padding-top: 0.1rem;
+}
+
+.ai-sim-insights-callout p {
+  margin: 0;
+  font-weight: 500;
+}
+
+/* Simulation Table styling */
+.ai-sim-table-wrap {
+  max-height: 480px;
+  overflow-y: auto;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--card-border);
+}
+
+.ai-sim-table-wrap table {
+  margin: 0;
+}
+
+.sim-student-name {
+  color: var(--gray-900);
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.sim-metrics-group {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.metric-chip {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-full);
+  background: var(--gray-100);
+  color: var(--gray-700);
+  border: 1px solid var(--card-border);
+}
+
+[data-theme="dark"] .metric-chip {
+  background: var(--gray-200);
+  color: var(--gray-400);
+}
+
+.sim-locker-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.sim-locker-sub {
+  font-size: 0.75rem;
+  color: var(--gray-500);
+}
+
+.sim-reason-cell {
+  max-width: 320px;
+}
+
+.sim-reason-pill {
+  font-size: 0.8125rem;
+  color: var(--gray-700);
+  background: var(--gray-50);
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--card-border);
+  line-height: 1.45;
+}
+
+[data-theme="dark"] .sim-reason-pill {
+  background: var(--gray-100);
+  color: var(--gray-300);
+}
+
+.sim-pagination-note {
+  font-size: 0.8rem;
+  color: var(--gray-500);
+  text-align: center;
+  margin-top: 0.5rem;
   font-weight: 500;
 }
 

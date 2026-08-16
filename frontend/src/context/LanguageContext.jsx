@@ -500,6 +500,9 @@ const translations = {
     ai_apply_btn: 'Commit AI Allocations',
     ai_simulation_summary: 'AI Matching Simulation: {planned} students matched into {spots} available spots ({skipped} skipped).',
     ai_tier_stats: 'Tier Breakdown: T1 (Inclusive): {t1} | T2 (Active): {t2} | T3 (GPA): {t3} | T4 (General): {t4}',
+    assign_col_priority: 'Priority',
+    assign_col_metrics: 'Metrics',
+    assign_showing_first_n: 'Showing first {count} of {total} assignments.',
 
     // Technician & Incident reporting
     incident_report_defect: 'Report Locker Defect',
@@ -1037,6 +1040,9 @@ const translations = {
     ai_apply_btn: 'Подтвердить и распределить',
     ai_simulation_summary: 'Симуляция ИИ: запланировано {planned} назначений на {spots} свободных мест ({skipped} пропущено).',
     ai_tier_stats: 'Распределение по уровням: У1 (Льготы): {t1} | У2 (Активные): {t2} | У3 (GPA): {t3} | У4 (Общий): {t4}',
+    assign_col_priority: 'Приоритет',
+    assign_col_metrics: 'Метрики',
+    assign_showing_first_n: 'Показаны первые {count} из {total} назначений.',
 
     // Техник и заявки на ремонт
     incident_report_defect: 'Сообщить о неисправности',
