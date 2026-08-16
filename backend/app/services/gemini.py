@@ -15,17 +15,18 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-def _get_client():
+def _get_client(model_name: str | None = None):
     """Lazily initialise the Gemini client so the app starts even without a key."""
     from app.core.config import settings
     if not settings.GEMINI_API_KEY:
         raise RuntimeError(
             "GEMINI_API_KEY is not configured. "
-            "Add it to backend/.env and restart the server."
+            "Add it to .env and restart the server."
         )
     import google.generativeai as genai
     genai.configure(api_key=settings.GEMINI_API_KEY)
-    return genai.GenerativeModel(settings.GEMINI_MODEL)
+    target_model = model_name or settings.GEMINI_MODEL or "gemini-flash-latest"
+    return genai.GenerativeModel(target_model)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -82,19 +83,9 @@ async def gemini_allocate(
     extra_instruction: str = "",
 ) -> dict[str, Any]:
     """
-    Ask Gemini to allocate lockers to students.
-
-    Args:
-        students: List of dicts with keys: id, full_name, group, course,
-                  inclusive_status, activity_score, gpa
-        lockers:  List of dicts with keys: id, number, floor, size,
-                  capacity, remaining_capacity
-        extra_instruction: Optional admin instruction (e.g. "prioritize group SE-2204")
-
-    Returns:
-        Gemini's parsed allocation plan dict.
+    Ask Gemini to allocate lockers to students with automatic model fallback.
     """
-    model = _get_client()
+    from app.core.config import settings
 
     user_message = f"""
 Here is the current data:
@@ -111,26 +102,44 @@ Please allocate as many students as possible to available lockers following the 
 Respond ONLY with valid JSON matching the schema.
 """
 
-    try:
-        response = model.generate_content(
-            [ALLOCATION_SYSTEM_PROMPT, user_message],
-            generation_config={
-                "temperature": 0.2,
-                "max_output_tokens": 8192,
-                "response_mime_type": "application/json",
-            },
-        )
-        raw = response.text.strip()
-        # Strip any accidental markdown fences
-        raw = re.sub(r"^```(?:json)?\s*", "", raw, flags=re.MULTILINE)
-        raw = re.sub(r"\s*```$", "", raw, flags=re.MULTILINE)
-        return json.loads(raw)
-    except json.JSONDecodeError as exc:
-        logger.error("Gemini returned invalid JSON: %s", exc)
-        raise ValueError(f"Gemini returned non-JSON response: {exc}") from exc
-    except Exception as exc:
-        logger.error("Gemini API error: %s", exc)
-        raise
+    candidate_models = [
+        settings.GEMINI_MODEL,
+        "gemini-flash-latest",
+        "gemini-pro-latest",
+        "gemini-flash-lite-latest",
+        "gemini-2.5-flash-lite",
+    ]
+    # Remove duplicates while preserving order
+    seen = set()
+    models_to_try = [m for m in candidate_models if m and not (m in seen or seen.add(m))]
+
+    last_error = None
+    for model_name in models_to_try:
+        try:
+            model = _get_client(model_name)
+            response = model.generate_content(
+                [ALLOCATION_SYSTEM_PROMPT, user_message],
+                generation_config={
+                    "temperature": 0.2,
+                    "max_output_tokens": 8192,
+                    "response_mime_type": "application/json",
+                },
+            )
+            raw = response.text.strip()
+            # Strip any accidental markdown fences
+            raw = re.sub(r"^```(?:json)?\s*", "", raw, flags=re.MULTILINE)
+            raw = re.sub(r"\s*```$", "", raw, flags=re.MULTILINE)
+            return json.loads(raw)
+        except json.JSONDecodeError as exc:
+            logger.error("Gemini returned invalid JSON with model %s: %s", model_name, exc)
+            raise ValueError(f"Gemini returned non-JSON response: {exc}") from exc
+        except Exception as exc:
+            logger.warning("Gemini model %s failed: %s. Trying fallback...", model_name, exc)
+            last_error = exc
+            continue
+
+    logger.error("All candidate Gemini models failed. Last error: %s", last_error)
+    raise last_error or RuntimeError("Failed to generate allocation with Gemini API.")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
