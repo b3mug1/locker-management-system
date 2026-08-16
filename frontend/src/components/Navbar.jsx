@@ -152,13 +152,6 @@ function Navbar() {
         {user?.role === 'user' && (
           <NavLink to="/my-locker" className={navClass}>{t('nav_my_locker')}</NavLink>
         )}
-
-        {/* Mobile-only notifications link */}
-        <NavLink to="/notifications" className={`mobile-only-nav ${navClass({ isActive: location.pathname === '/notifications' })}`}>
-          <Bell size={16} />
-          <span>{t('nav_notifications')}</span>
-          {unreadCount > 0 && <span className="nav-badge-inline">{unreadCount}</span>}
-        </NavLink>
       </div>
 
       <div className="navbar-user">
