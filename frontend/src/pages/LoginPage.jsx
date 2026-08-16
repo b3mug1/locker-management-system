@@ -1,13 +1,14 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { login } from '../api/auth';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import { Sun, Moon } from 'lucide-react';
+import { Sun, Moon, Eye, EyeOff } from 'lucide-react';
 
 function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { loginUser } = useAuth();
@@ -74,14 +75,25 @@ function LoginPage() {
             />
           </div>
           <div className="form-group">
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder={t('login_placeholder_password')}
-              required
-            />
+            <div className="password-input-wrapper">
+              <input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder={t('login_placeholder_password')}
+                required
+              />
+              <button
+                type="button"
+                className="password-toggle-btn"
+                onClick={() => setShowPassword(v => !v)}
+                title={showPassword ? t('pwd_hide') : t('pwd_show')}
+                aria-label={showPassword ? t('pwd_hide') : t('pwd_show')}
+              >
+                {showPassword ? <EyeOff size={18} strokeWidth={1.75} /> : <Eye size={18} strokeWidth={1.75} />}
+              </button>
+            </div>
           </div>
           <button className="btn btn-primary login-btn" type="submit" disabled={loading}>
             {loading ? t('login_loading') : t('login_btn')}

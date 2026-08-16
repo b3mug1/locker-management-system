@@ -1,14 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import { Sun, Moon, KeyRound } from 'lucide-react';
+import { getUnreadNotificationCount } from '../api/notifications';
+import { useWebSocket } from '../hooks/useWebSocket';
+import {
+  Sun, Moon, KeyRound, Bell, ChevronDown,
+  Users, Wrench, History, LogOut
+} from 'lucide-react';
 
 function Navbar() {
   const { user, logout } = useAuth();
   const { lang, switchLang, t } = useLanguage();
   const navigate = useNavigate();
+  const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const dropdownRef = useRef(null);
+
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem('theme') || 'light';
   });
@@ -22,12 +32,50 @@ function Navbar() {
     setTheme(prev => prev === 'light' ? 'dark' : 'light');
   };
 
+  const fetchUnread = async () => {
+    if (!user) return;
+    try {
+      const res = await getUnreadNotificationCount();
+      setUnreadCount(res.data?.count ?? 0);
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 30000);
+    return () => clearInterval(interval);
+  }, [user]);
+
+  useWebSocket({
+    notification_change: fetchUnread,
+  });
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Close menus on navigation
+  useEffect(() => {
+    setDropdownOpen(false);
+    setMobileOpen(false);
+  }, [location.pathname]);
+
   const handleLogout = () => {
     logout();
     navigate('/welcome');
   };
 
   const navClass = ({ isActive }) => isActive ? 'active-link' : '';
+  const isManagementActive = ['/users', '/incidents', '/audit-logs'].includes(location.pathname);
 
   return (
     <nav className="navbar">
@@ -47,23 +95,88 @@ function Navbar() {
       <div className={`navbar-links ${mobileOpen ? 'mobile-open' : ''}`}>
         {user?.role === 'admin' && (
           <>
-            <NavLink to="/dashboard" end className={navClass} onClick={() => setMobileOpen(false)}>{t('nav_dashboard')}</NavLink>
-            <NavLink to="/users" className={navClass} onClick={() => setMobileOpen(false)}>{t('nav_users')}</NavLink>
-            <NavLink to="/students" className={navClass} onClick={() => setMobileOpen(false)}>{t('nav_students')}</NavLink>
-            <NavLink to="/lockers" className={navClass} onClick={() => setMobileOpen(false)}>{t('nav_lockers')}</NavLink>
-            <NavLink to="/assignments" className={navClass} onClick={() => setMobileOpen(false)}>{t('nav_assignments')}</NavLink>
-            <NavLink to="/incidents" className={navClass} onClick={() => setMobileOpen(false)}>{t('nav_maintenance')}</NavLink>
-            <NavLink to="/analytics" className={navClass} onClick={() => setMobileOpen(false)}>{t('nav_analytics')}</NavLink>
-            <NavLink to="/audit-logs" className={navClass} onClick={() => setMobileOpen(false)}>{t('nav_activity')}</NavLink>
+            <NavLink to="/dashboard" end className={navClass}>{t('nav_dashboard')}</NavLink>
+            <NavLink to="/lockers" className={navClass}>{t('nav_lockers')}</NavLink>
+            <NavLink to="/students" className={navClass}>{t('nav_students')}</NavLink>
+            <NavLink to="/assignments" className={navClass}>{t('nav_assignments')}</NavLink>
+            <NavLink to="/analytics" className={navClass}>{t('nav_analytics')}</NavLink>
+
+            {/* Desktop Management Dropdown */}
+            <div className="nav-dropdown desktop-only-dropdown" ref={dropdownRef}>
+              <button
+                type="button"
+                className={`nav-dropdown-toggle ${isManagementActive ? 'active-link' : ''}`}
+                onClick={() => setDropdownOpen(o => !o)}
+                aria-expanded={dropdownOpen}
+              >
+                <span>{t('nav_management')}</span>
+                <ChevronDown size={14} className={`dropdown-chevron ${dropdownOpen ? 'rotated' : ''}`} />
+              </button>
+
+              {dropdownOpen && (
+                <div className="nav-dropdown-menu">
+                  <NavLink to="/users" className={navClass}>
+                    <Users size={15} />
+                    <span>{t('nav_users')}</span>
+                  </NavLink>
+                  <NavLink to="/incidents" className={navClass}>
+                    <Wrench size={15} />
+                    <span>{t('nav_maintenance')}</span>
+                  </NavLink>
+                  <NavLink to="/audit-logs" className={navClass}>
+                    <History size={15} />
+                    <span>{t('nav_activity')}</span>
+                  </NavLink>
+                </div>
+              )}
+            </div>
+
+            {/* Mobile-only expanded management links */}
+            <div className="mobile-only-section">
+              <NavLink to="/users" className={navClass}>
+                <Users size={15} />
+                <span>{t('nav_users')}</span>
+              </NavLink>
+              <NavLink to="/incidents" className={navClass}>
+                <Wrench size={15} />
+                <span>{t('nav_maintenance')}</span>
+              </NavLink>
+              <NavLink to="/audit-logs" className={navClass}>
+                <History size={15} />
+                <span>{t('nav_activity')}</span>
+              </NavLink>
+            </div>
           </>
         )}
+
         {user?.role === 'user' && (
-          <NavLink to="/my-locker" className={navClass} onClick={() => setMobileOpen(false)}>{t('nav_my_locker')}</NavLink>
+          <NavLink to="/my-locker" className={navClass}>{t('nav_my_locker')}</NavLink>
         )}
-        <NavLink to="/notifications" className={navClass} onClick={() => setMobileOpen(false)}>{t('nav_notifications')}</NavLink>
+
+        {/* Mobile-only notifications link */}
+        <NavLink to="/notifications" className={`mobile-only-nav ${navClass({ isActive: location.pathname === '/notifications' })}`}>
+          <Bell size={16} />
+          <span>{t('nav_notifications')}</span>
+          {unreadCount > 0 && <span className="nav-badge-inline">{unreadCount}</span>}
+        </NavLink>
       </div>
 
       <div className="navbar-user">
+        {/* Notifications Icon Button with live badge */}
+        <NavLink
+          to="/notifications"
+          className={({ isActive }) => `nav-icon-btn ${isActive ? 'active' : ''}`}
+          title={t('nav_notifications')}
+          aria-label={t('nav_notifications')}
+        >
+          <Bell size={18} strokeWidth={1.75} />
+          {unreadCount > 0 && (
+            <span className="nav-badge">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
+        </NavLink>
+
         <button
           className="lang-toggle"
           onClick={() => switchLang(lang === 'en' ? 'ru' : 'en')}
@@ -71,6 +184,7 @@ function Navbar() {
         >
           {lang === 'en' ? '🇷🇺' : '🇬🇧'}
         </button>
+
         <button
           className="theme-toggle"
           onClick={toggleTheme}
@@ -78,12 +192,20 @@ function Navbar() {
         >
           {theme === 'light' ? <Moon size={18} strokeWidth={1.75} /> : <Sun size={18} strokeWidth={1.75} />}
         </button>
-        <NavLink to="/change-password" className="btn btn-sm btn-outline" onClick={() => setMobileOpen(false)} title={t('nav_change_password')}>
+
+        <NavLink
+          to="/change-password"
+          className="btn btn-sm btn-outline nav-key-btn"
+          title={t('nav_change_password')}
+        >
           <KeyRound size={16} strokeWidth={1.75} />
         </NavLink>
+
         <span className="role-badge">{user?.role}</span>
-        <button className="btn btn-sm btn-outline" onClick={handleLogout}>
-          {t('nav_logout')}
+
+        <button className="btn btn-sm btn-outline nav-logout-btn" onClick={handleLogout} title={t('nav_logout')}>
+          <LogOut size={14} className="logout-icon" />
+          <span>{t('nav_logout')}</span>
         </button>
       </div>
     </nav>

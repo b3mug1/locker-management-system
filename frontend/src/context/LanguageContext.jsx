@@ -266,6 +266,7 @@ const translations = {
 
     // Navbar extras
     nav_analytics: 'Analytics',
+    nav_management: 'Management',
     nav_maintenance: 'Maintenance',
     nav_activity: 'Activity',
     nav_notifications: 'Notifications',
@@ -385,6 +386,8 @@ const translations = {
     pwd_failed: 'Failed to change password.',
     pwd_mismatch: 'New passwords do not match.',
     pwd_min_length: 'Password must be at least 6 characters.',
+    pwd_show: 'Show password',
+    pwd_hide: 'Hide password',
 
     // Combined CSV import
     csv_combined_import: 'Import Combined CSV',
@@ -704,6 +707,7 @@ const translations = {
 
     // Navbar extras
     nav_analytics: 'Аналитика',
+    nav_management: 'Управление',
     nav_maintenance: 'Обслуживание',
     nav_activity: 'Журнал',
     nav_notifications: 'Уведомления',
@@ -823,6 +827,8 @@ const translations = {
     pwd_failed: 'Не удалось сменить пароль.',
     pwd_mismatch: 'Новые пароли не совпадают.',
     pwd_min_length: 'Пароль должен быть не менее 6 символов.',
+    pwd_show: 'Показать пароль',
+    pwd_hide: 'Скрыть пароль',
 
     // Combined CSV import
     csv_combined_import: 'Импорт общего CSV',
