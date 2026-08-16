@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { getUsers, createUser, deleteUser } from '../api/users';
 import { getStudents } from '../api/students';
 import { useLanguage } from '../context/LanguageContext';
@@ -124,6 +124,7 @@ function UsersPage() {
               <label>{t('users_role')}</label>
               <select value={role} onChange={(e) => setRole(e.target.value)}>
                 <option value="user">{t('users_role_user')}</option>
+                <option value="technician">{t('users_role_technician')}</option>
                 <option value="admin">{t('users_role_admin')}</option>
               </select>
             </div>

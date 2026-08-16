@@ -9,8 +9,13 @@ function ProtectedRoute({ children, requiredRole }) {
     return <Navigate to="/login" replace />;
   }
 
-  if (requiredRole && user.role !== requiredRole) {
-    return <Navigate to="/" replace />;
+  if (requiredRole) {
+    if (Array.isArray(requiredRole) && !requiredRole.includes(user.role)) {
+      return <Navigate to="/" replace />;
+    }
+    if (typeof requiredRole === 'string' && user.role !== requiredRole) {
+      return <Navigate to="/" replace />;
+    }
   }
 
   return children ? children : <Outlet />;

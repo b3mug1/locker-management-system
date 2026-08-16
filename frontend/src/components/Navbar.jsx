@@ -149,6 +149,18 @@ function Navbar() {
           </>
         )}
 
+        {user?.role === 'technician' && (
+          <>
+            <NavLink to="/technician-tasks" className={navClass}>
+              🛠️ {t('nav_tech_workspace')}
+            </NavLink>
+            <NavLink to="/incidents" className={navClass}>
+              <Wrench size={15} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
+              {t('nav_maintenance')}
+            </NavLink>
+          </>
+        )}
+
         {user?.role === 'user' && (
           <NavLink to="/my-locker" className={navClass}>{t('nav_my_locker')}</NavLink>
         )}
