@@ -231,12 +231,12 @@ function AssignmentsPage() {
       const res = await geminiAllocate({ commit: false, instruction: geminiInstruction });
       setGeminiPlan(res.data);
       if (res.data.planned === 0) {
-        setSuccess('Gemini AI: все студенты уже успешно распределены по ячейкам.');
+        setSuccess(t('ai_already_all_assigned'));
       }
     } catch (err) {
-      const detail = err.response?.data?.detail || 'Ошибка соединения с Gemini API';
+      const detail = err.response?.data?.detail || 'Gemini API Error';
       if (detail.includes('GEMINI_API_KEY')) {
-        setError('Конфигурация Gemini API отсутствует. Пожалуйста, укажите GEMINI_API_KEY в файле .env в корне проекта.');
+        setError(t('ai_api_key_missing'));
       } else {
         setError(`Gemini AI: ${detail}`);
       }
@@ -250,22 +250,22 @@ function AssignmentsPage() {
     if (planned === 0) return;
     setConfirmModal({
       open: true,
-      title: 'Применить распределение локеров?',
-      message: `Подтвердить создание ${planned} назначений локеров, подобранных Gemini AI?`,
+      title: t('ai_commit_confirm_title'),
+      message: t('ai_commit_confirm_msg', { count: planned }),
       variant: 'warning',
-      confirmText: 'Применить',
+      confirmText: t('ai_commit_btn_text'),
       onConfirm: async () => {
         setConfirmModal(m => ({ ...m, open: false }));
         setError('');
         setSuccess('');
         try {
           const res = await geminiAllocate({ commit: true, instruction: geminiInstruction });
-          setSuccess(`ИИ-распределение успешно завершено: создано ${res.data.created} назначений.`);
+          setSuccess(t('ai_commit_success_msg', { count: res.data.created }));
           setGeminiPlan(null);
           setGeminiInstruction('');
           fetchAll();
         } catch (err) {
-          setError(err.response?.data?.detail || 'Ошибка сохранения распределения.');
+          setError(err.response?.data?.detail || t('assign_failed'));
         }
       },
     });
@@ -288,7 +288,7 @@ function AssignmentsPage() {
       <div className="page-header">
         <div>
           <h1>{t('assign_title')}</h1>
-          <p className="page-subtitle">Просмотр, создание и управление активными назначениями шкафчиков студентам кампуса.</p>
+          <p className="page-subtitle">{t('ai_page_subtitle')}</p>
         </div>
         <div className="page-header-actions">
           <button className="btn btn-outline" onClick={() => csvInputRef.current?.click()}>{t('csv_combined_import')}</button>
@@ -330,10 +330,8 @@ function AssignmentsPage() {
       <div className="ai-allocation-control-card">
         <div className="ai-allocation-card-header">
           <div className="ai-title-section">
-            <h3>Умное распределение локеров ИИ</h3>
-            <p className="ai-subtitle-text">
-              Автоматическое распределение шкафчиков на основе академического приоритета, успеваемости (GPA), уровня активности и медицинских льгот.
-            </p>
+            <h3>{t('ai_auto_title')}</h3>
+            <p className="ai-subtitle-text">{t('ai_auto_desc')}</p>
           </div>
           <div className="ai-action-section">
             <button
@@ -341,7 +339,7 @@ function AssignmentsPage() {
               onClick={handleGeminiPreview}
               disabled={geminiLoading}
             >
-              {geminiLoading ? 'Выполняется расчет...' : 'Запустить ИИ-распределение'}
+              {geminiLoading ? t('ai_running_btn') : t('ai_run_btn')}
             </button>
           </div>
         </div>
@@ -350,40 +348,40 @@ function AssignmentsPage() {
           <div className="rule-step">
             <span className="step-num">I</span>
             <div className="step-info">
-              <strong>Приоритетная категория</strong>
-              <span>Льготные категории гарантированно распределяются на первый (доступный) этаж.</span>
+              <strong>{t('ai_step_1_title')}</strong>
+              <span>{t('ai_step_1_desc')}</span>
             </div>
           </div>
           <div className="rule-step">
             <span className="step-num">II</span>
             <div className="step-info">
-              <strong>Высокая активность</strong>
-              <span>Студенты с высоким рейтингом использования локеров получают приоритетный доступ.</span>
+              <strong>{t('ai_step_2_title')}</strong>
+              <span>{t('ai_step_2_desc')}</span>
             </div>
           </div>
           <div className="rule-step">
             <span className="step-num">III</span>
             <div className="step-info">
-              <strong>Успеваемость (GPA)</strong>
-              <span>Отличники и студенты с высоким средним баллом распределяются в следующую очередь.</span>
+              <strong>{t('ai_step_3_title')}</strong>
+              <span>{t('ai_step_3_desc')}</span>
             </div>
           </div>
           <div className="rule-step">
             <span className="step-num">IV</span>
             <div className="step-info">
-              <strong>Общий поток</strong>
-              <span>Остальные незанятые студенты распределяются по оставшимся свободным локерам.</span>
+              <strong>{t('ai_step_4_title')}</strong>
+              <span>{t('ai_step_4_desc')}</span>
             </div>
           </div>
         </div>
 
         <div className="ai-custom-prompt-row">
-          <label className="ai-prompt-label">Дополнительные инструкции для ИИ (необязательно):</label>
+          <label className="ai-prompt-label">{t('ai_custom_rules_label')}</label>
           <div className="ai-prompt-input-wrapper">
             <input
               type="text"
               className="ai-prompt-input"
-              placeholder="Например: «приоритетно распределить группу SE-2204 на 2 этаж» или «выделить локеры только для первого курса»"
+              placeholder={t('ai_custom_rules_placeholder')}
               value={geminiInstruction}
               onChange={e => setGeminiInstruction(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleGeminiPreview()}
@@ -398,7 +396,7 @@ function AssignmentsPage() {
         <div className="ai-preview-card ai-preview-card--gemini">
           <div className="ai-preview-header">
             <div className="ai-preview-title-wrap">
-              <h2>Результаты симуляции распределения Gemini AI</h2>
+              <h2>{t('ai_sim_title')}</h2>
               <span className="badge-ai-pulse badge-gemini-pulse">Gemini 1.5 Flash</span>
               {geminiPlan.summary && (
                 <p className="gemini-summary-inline">{geminiPlan.summary}</p>
@@ -410,10 +408,10 @@ function AssignmentsPage() {
                 onClick={handleGeminiApply}
                 disabled={!geminiPlan.planned}
               >
-                Применить назначение ({geminiPlan.planned})
+                {t('ai_sim_commit_btn', { count: geminiPlan.planned })}
               </button>
               <button className="btn btn-sm btn-outline" onClick={() => setGeminiPlan(null)}>
-                Скрыть
+                {t('ai_sim_hide_btn')}
               </button>
             </div>
           </div>
@@ -450,7 +448,11 @@ function AssignmentsPage() {
           </div>
 
           <p className="ai-summary-text">
-            Симуляция распределения: запланировано {geminiPlan.planned} назначений, свободно {geminiPlan.available_spots} мест, пропущено {geminiPlan.skipped_students} студентов.
+            {t('ai_sim_summary_text', {
+              planned: geminiPlan.planned,
+              spots: geminiPlan.available_spots,
+              skipped: geminiPlan.skipped_students
+            })}
           </p>
 
           {geminiPlan.insights && (
