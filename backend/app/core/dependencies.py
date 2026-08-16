@@ -48,6 +48,24 @@ async def get_current_admin(current_user: User = Depends(get_current_user)) -> U
     if current_user.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions",
+            detail="Admin permissions required",
+        )
+    return current_user
+
+
+async def get_current_technician(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.role != "technician":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Technician permissions required",
+        )
+    return current_user
+
+
+async def get_current_staff(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.role not in ("admin", "technician"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Staff permissions required",
         )
     return current_user

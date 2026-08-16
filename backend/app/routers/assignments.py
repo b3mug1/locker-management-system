@@ -281,16 +281,45 @@ async def auto_assign_lockers(
     current_admin: User = Depends(get_current_admin),
 ):
     active_student_ids = select(Assignment.student_id).where(Assignment.released_at.is_(None))
-    students = list((await db.execute(
+    unassigned_students = list((await db.execute(
         select(Student)
         .where(~Student.id.in_(active_student_ids))
-        .order_by(
-            (Student.inclusive_status == "none").asc(),
-            Student.course.desc(),
-            Student.group.asc(),
-            Student.full_name.asc(),
-        )
     )).scalars().all())
+
+    # Classify each student into 4 Tiers
+    tier_classified = []
+    for s in unassigned_students:
+        act = s.activity_score if hasattr(s, "activity_score") and s.activity_score is not None else 50
+        gpa = s.gpa if hasattr(s, "gpa") and s.gpa is not None else 3.0
+
+        if s.inclusive_status and s.inclusive_status != "none":
+            tier = 1
+            tier_name = f"Льготная категория ({s.inclusive_status})"
+            priority_score = 100.0 + act * 0.1
+        elif act >= 70:
+            tier = 2
+            tier_name = f"Активный студент (балл: {act})"
+            priority_score = 80.0 + (act - 70) * 0.5 + gpa
+        elif gpa >= 3.4:
+            tier = 3
+            tier_name = f"Отличник / Высокий GPA ({gpa:.2f})"
+            priority_score = 60.0 + (gpa - 3.4) * 20.0 + act * 0.1
+        else:
+            tier = 4
+            tier_name = "Общий поток"
+            priority_score = 40.0 + act * 0.1 + gpa
+
+        tier_classified.append({
+            "student": s,
+            "tier": tier,
+            "tier_name": tier_name,
+            "priority_score": priority_score,
+            "activity_score": act,
+            "gpa": gpa,
+        })
+
+    # Sort students: Tier 1 first, then by priority_score descending
+    tier_classified.sort(key=lambda x: (x["tier"], -x["priority_score"], -x["student"].course, x["student"].group, x["student"].full_name))
 
     active_counts = {
         row.locker_id: row.count
@@ -309,44 +338,78 @@ async def auto_assign_lockers(
     items = []
     remaining_by_locker = {locker.id: locker.capacity - active_counts.get(locker.id, 0) for locker in lockers}
     available_spots = sum(max(0, spots) for spots in remaining_by_locker.values())
-    limit = data.max_assignments or len(students)
+    limit = data.max_assignments or len(tier_classified)
 
-    for student in students:
+    tier_1_c = 0
+    tier_2_c = 0
+    tier_3_c = 0
+    tier_4_c = 0
+
+    for item in tier_classified:
         if len(items) >= limit:
             break
-        candidates = [locker for locker in lockers if remaining_by_locker.get(locker.id, 0) > 0]
+        student = item["student"]
+        tier = item["tier"]
+
+        candidates = [l for l in lockers if remaining_by_locker.get(l.id, 0) > 0]
         if not candidates:
             break
 
-        def score(locker: Locker) -> tuple:
-            occupied = locker.capacity - remaining_by_locker[locker.id]
-            same_group_bonus = 0
-            if occupied > 0:
-                same_group_bonus = -1
-            priority_floor = locker.floor if student.inclusive_status != "none" else abs(locker.floor - student.course)
-            return (priority_floor, same_group_bonus, occupied, locker.number)
+        def locker_score(locker: Locker) -> tuple:
+            # Tier 1 strongly prioritizes floor 1 (accessibility)
+            if tier == 1:
+                floor_cost = abs(locker.floor - 1)
+            else:
+                floor_cost = abs(locker.floor - student.course) if student.course <= 3 else abs(locker.floor - 2)
 
-        locker = sorted(candidates, key=score)[0]
-        occupied_before = locker.capacity - remaining_by_locker[locker.id]
-        remaining_by_locker[locker.id] -= 1
+            occupied = locker.capacity - remaining_by_locker[locker.id]
+            # prefer clustering with other students if locker has capacity 2
+            cluster_bonus = -1 if occupied > 0 else 0
+            return (floor_cost, cluster_bonus, occupied, locker.number)
+
+        best_locker = sorted(candidates, key=locker_score)[0]
+        occupied_before = best_locker.capacity - remaining_by_locker[best_locker.id]
+        remaining_by_locker[best_locker.id] -= 1
+
+        # Generate human-readable AI justification
+        if tier == 1:
+            tier_1_c += 1
+            reason = f"⭐ Уровень 1 (Льгота: {student.inclusive_status}): выделен доступный шкафчик на этаже {best_locker.floor}."
+        elif tier == 2:
+            tier_2_c += 1
+            reason = f"🚀 Уровень 2 (Активность: {item['activity_score']}/100): приоритетный подбор локера №{best_locker.number} (этаж {best_locker.floor})."
+        elif tier == 3:
+            tier_3_c += 1
+            reason = f"🎓 Уровень 3 (GPA: {item['gpa']:.2f}): академическое превосходство, локер №{best_locker.number} (этаж {best_locker.floor})."
+        else:
+            tier_4_c += 1
+            reason = f"👥 Уровень 4 (Общий поток): оптимальное распределение по этажу {best_locker.floor} и группе {student.group}."
+
         items.append({
             "student_id": student.id,
             "student_name": student.full_name,
             "student_group": student.group,
             "student_course": student.course,
-            "inclusive_status": student.inclusive_status,
-            "locker_id": locker.id,
-            "locker_number": locker.number,
-            "locker_floor": locker.floor,
-            "locker_size": locker.size,
-            "locker_capacity": locker.capacity,
+            "inclusive_status": student.inclusive_status or "none",
+            "activity_score": item["activity_score"],
+            "gpa": item["gpa"],
+            "tier": tier,
+            "tier_name": item["tier_name"],
+            "priority_score": round(item["priority_score"], 1),
+            "ai_reason": reason,
+            "locker_id": best_locker.id,
+            "locker_number": best_locker.number,
+            "locker_floor": best_locker.floor,
+            "locker_size": best_locker.size,
+            "locker_access_type": best_locker.access_type,
+            "locker_capacity": best_locker.capacity,
             "locker_occupied_before": occupied_before,
         })
 
     created = 0
     if data.commit and items:
-        for item in items:
-            db.add(Assignment(student_id=item["student_id"], locker_id=item["locker_id"]))
+        for it in items:
+            db.add(Assignment(student_id=it["student_id"], locker_id=it["locker_id"]))
             created += 1
         await db.flush()
         await AuditLogService(db).create(
@@ -354,8 +417,8 @@ async def auto_assign_lockers(
             action="auto_assign",
             entity_type="assignment",
             entity_id=None,
-            summary=f"Auto-assigned {created} students",
-            new_values={"assignments": items},
+            summary=f"AI Auto-assigned {created} students (T1: {tier_1_c}, T2: {tier_2_c}, T3: {tier_3_c}, T4: {tier_4_c})",
+            new_values={"assignments_count": created, "tier_1": tier_1_c, "tier_2": tier_2_c, "tier_3": tier_3_c, "tier_4": tier_4_c},
             commit=False,
         )
         await db.commit()
@@ -365,8 +428,12 @@ async def auto_assign_lockers(
     return {
         "planned": len(items),
         "created": created,
-        "skipped_students": max(0, len(students) - len(items)),
+        "skipped_students": max(0, len(tier_classified) - len(items)),
         "available_spots": available_spots,
+        "tier_1_count": tier_1_c,
+        "tier_2_count": tier_2_c,
+        "tier_3_count": tier_3_c,
+        "tier_4_count": tier_4_c,
         "items": items,
     }
 
