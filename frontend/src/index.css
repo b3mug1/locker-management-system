@@ -4021,40 +4021,215 @@ td .btn + .btn {
 }
 
 /* ============================================================
-   GEMINI AI — Button, Instruction Bar, Card Variant, Chat Widget
+   GEMINI AI — Unified Control Card, Steps Grid, Premium Inline Panel
    ============================================================ */
 
-/* Gemini primary button */
+/* Gemini primary action button */
 .btn-gemini {
-  background: linear-gradient(135deg, #1a73e8 0%, #8ab4f8 100%);
-  color: #fff !important;
-  border-color: transparent;
+  background: linear-gradient(135deg, #1a73e8 0%, #3b82f6 100%);
+  color: #ffffff !important;
+  border: none;
   font-weight: 600;
-  box-shadow: 0 2px 8px rgba(26, 115, 232, 0.3);
+  padding: 0.625rem 1.25rem;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
   transition: all var(--transition);
+  cursor: pointer;
 }
 
 .btn-gemini:hover:not(:disabled) {
-  background: linear-gradient(135deg, #1557b0 0%, #669df6 100%);
-  box-shadow: 0 4px 16px rgba(26, 115, 232, 0.4);
+  background: linear-gradient(135deg, #1557b0 0%, #2563eb 100%);
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.3);
   transform: translateY(-1px);
 }
 
-/* Gemini card variant */
+.btn-gemini:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* Consolidated Control Card */
+.ai-allocation-control-card {
+  background: var(--white);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-xl);
+  padding: 1.75rem;
+  margin-bottom: 2rem;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  transition: all var(--transition);
+}
+
+.ai-allocation-control-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary-light);
+}
+
+/* Header Section inside Card */
+.ai-allocation-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1.5rem;
+  border-bottom: 1px solid var(--card-border);
+  padding-bottom: 1.25rem;
+}
+
+.ai-title-section {
+  flex: 1;
+}
+
+.ai-title-section h3 {
+  font-size: 1.25rem;
+  font-weight: 800;
+  margin: 0 0 0.35rem 0;
+  color: var(--gray-900);
+  letter-spacing: -0.02em;
+}
+
+.ai-subtitle-text {
+  font-size: 0.875rem;
+  color: var(--gray-500);
+  margin: 0;
+  line-height: 1.45;
+}
+
+.ai-action-section {
+  display: flex;
+  align-items: center;
+}
+
+/* Rules Steps Grid */
+.ai-allocation-rules-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.25rem;
+}
+
+.rule-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.875rem;
+  background: var(--gray-50);
+  padding: 1rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--card-border);
+  transition: all var(--transition);
+}
+
+.rule-step:hover {
+  background: var(--white);
+  border-color: var(--primary-light);
+  transform: translateY(-1px);
+}
+
+[data-theme="dark"] .rule-step {
+  background: var(--gray-100);
+}
+
+[data-theme="dark"] .rule-step:hover {
+  background: var(--white);
+}
+
+.step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: var(--primary-light);
+  color: var(--primary);
+  font-weight: 700;
+  font-size: 0.8125rem;
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+}
+
+.step-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.step-info strong {
+  font-size: 0.875rem;
+  color: var(--gray-800);
+  font-weight: 700;
+}
+
+.step-info span {
+  font-size: 0.75rem;
+  color: var(--gray-500);
+  line-height: 1.35;
+}
+
+/* Custom instructions prompt section */
+.ai-custom-prompt-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  background: var(--gray-50);
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius-lg);
+  border: 1px dashed var(--primary-light);
+}
+
+[data-theme="dark"] .ai-custom-prompt-row {
+  background: var(--gray-100);
+}
+
+.ai-prompt-label {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ai-prompt-input-wrapper {
+  width: 100%;
+}
+
+.ai-prompt-input {
+  width: 100%;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  font-family: var(--font-sans);
+  color: var(--gray-800);
+  background: var(--white);
+  outline: none;
+  transition: all var(--transition);
+}
+
+.ai-prompt-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+[data-theme="dark"] .ai-prompt-input {
+  background: var(--white);
+  color: var(--gray-800);
+}
+
+/* Gemini Simulation Result Cards */
 .ai-preview-card--gemini {
-  border-color: rgba(26, 115, 232, 0.3);
-  box-shadow: 0 10px 30px -5px rgba(26, 115, 232, 0.1), var(--shadow-sm);
+  border-color: var(--primary-light);
+  box-shadow: 0 10px 30px -5px rgba(37, 99, 235, 0.08), var(--shadow-md);
 }
 
 .badge-gemini-pulse {
-  background: linear-gradient(135deg, #1a73e8, #34a853);
-  color: #fff;
+  background: var(--primary-gradient);
+  color: #ffffff;
   font-size: 0.675rem;
   font-weight: 700;
   padding: 0.2rem 0.55rem;
   border-radius: var(--radius-full);
   letter-spacing: 0.02em;
-  box-shadow: 0 2px 8px rgba(26, 115, 232, 0.3);
 }
 
 .gemini-summary-inline {
@@ -4065,251 +4240,69 @@ td .btn + .btn {
   line-height: 1.4;
 }
 
+/* Strategic Insights Box */
 .gemini-insights-box {
   display: flex;
   align-items: flex-start;
   gap: 0.625rem;
-  background: #e8f0fe;
-  border: 1px solid rgba(26, 115, 232, 0.2);
-  border-left: 3px solid #1a73e8;
+  background: var(--primary-light);
+  border: 1px solid rgba(37, 99, 235, 0.15);
+  border-left: 3px solid var(--primary);
   border-radius: var(--radius-lg);
   padding: 0.75rem 1rem;
   margin-bottom: 1rem;
   font-size: 0.8125rem;
-  color: #174ea6;
+  color: var(--primary-hover);
   line-height: 1.5;
 }
 
 [data-theme="dark"] .gemini-insights-box {
-  background: rgba(26, 115, 232, 0.08);
-  border-color: rgba(26, 115, 232, 0.25);
-  border-left-color: #8ab4f8;
-  color: #8ab4f8;
+  background: var(--primary-light);
+  border-color: rgba(37, 99, 235, 0.2);
+  border-left-color: var(--primary);
+  color: var(--primary);
 }
 
-.gemini-insights-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 0.05rem; }
-.gemini-insights-box p { margin: 0; }
+.gemini-insights-icon {
+  font-size: 0.8125rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--primary);
+  flex-shrink: 0;
+}
 
+.gemini-insights-box p {
+  margin: 0;
+  font-weight: 500;
+}
+
+/* Gemini reasoning inline badges */
 .ai-reason-badge--gemini {
-  border-left-color: #1a73e8;
-  background: #e8f0fe;
-  color: #174ea6;
+  border-left-color: var(--primary);
+  background: var(--primary-light);
+  color: var(--primary-hover);
 }
 
 [data-theme="dark"] .ai-reason-badge--gemini {
-  background: rgba(26, 115, 232, 0.1);
-  color: #8ab4f8;
-  border-left-color: #8ab4f8;
+  background: var(--primary-light);
+  color: var(--primary);
+  border-left-color: var(--primary);
 }
 
-/* Instruction bar */
-.gemini-instruction-bar {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  padding: 0.75rem 1rem;
-  background: var(--white);
-  border: 1px solid rgba(26, 115, 232, 0.25);
-  border-radius: var(--radius-lg);
-  margin-bottom: 1rem;
-  box-shadow: var(--shadow-sm);
-  animation: fadeIn 0.2s ease-out;
+@media (max-width: 768px) {
+  .ai-allocation-card-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .ai-action-section {
+    width: 100%;
+  }
+  .ai-action-section button {
+    width: 100%;
+  }
 }
 
-.gemini-instruction-icon { font-size: 1.25rem; flex-shrink: 0; }
-
-.gemini-instruction-input {
-  flex: 1;
-  border: 1.5px solid var(--card-border);
-  border-radius: var(--radius);
-  padding: 0.4375rem 0.875rem;
-  font-size: 0.875rem;
-  font-family: var(--font-sans);
-  color: var(--gray-800);
-  background: var(--gray-50);
-  outline: none;
-  transition: border-color var(--transition);
-}
-
-.gemini-instruction-input:focus {
-  border-color: #1a73e8;
-  background: var(--white);
-  box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
-}
-
-[data-theme="dark"] .gemini-instruction-input {
-  background: var(--gray-100);
-  border-color: var(--card-border);
-}
-
-/* ── Gemini Chat Widget ─────────────────────────────────── */
-.gemini-chat-widget {
-  position: fixed;
-  bottom: 1.5rem;
-  right: 1.5rem;
-  z-index: 500;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.5rem;
-}
-
-.gemini-chat-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  background: linear-gradient(135deg, #1a73e8 0%, #34a853 100%);
-  color: #fff;
-  border: none;
-  border-radius: var(--radius-full);
-  padding: 0.65rem 1.1rem;
-  font-size: 1rem;
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: 0 4px 20px rgba(26, 115, 232, 0.45);
-  transition: all var(--transition);
-  font-family: var(--font-sans);
-}
-
-.gemini-chat-toggle:hover {
-  transform: scale(1.06) translateY(-1px);
-  box-shadow: 0 6px 24px rgba(26, 115, 232, 0.55);
-}
-
-.gemini-chat-toggle-label { font-size: 0.8125rem; font-weight: 600; }
-
-.gemini-chat-panel {
-  width: 360px;
-  max-width: 90vw;
-  background: var(--white);
-  border: 1px solid var(--card-border);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-lg);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  animation: fadeIn 0.2s ease-out;
-}
-
-.gemini-chat-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.75rem 1rem;
-  background: linear-gradient(135deg, #1a73e8 0%, #34a853 100%);
-  color: #fff;
-}
-
-.gemini-chat-title { font-weight: 700; font-size: 0.9375rem; }
-
-.gemini-model-tag {
-  font-size: 0.7rem;
-  font-weight: 600;
-  background: rgba(255, 255, 255, 0.2);
-  padding: 0.15rem 0.5rem;
-  border-radius: 9999px;
-  letter-spacing: 0.04em;
-}
-
-.gemini-chat-messages {
-  flex: 1;
-  max-height: 300px;
-  overflow-y: auto;
-  padding: 0.875rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.625rem;
-  background: var(--gray-50);
-}
-
-[data-theme="dark"] .gemini-chat-messages { background: var(--gray-100); }
-
-.gemini-msg { display: flex; }
-.gemini-msg--user { justify-content: flex-end; }
-.gemini-msg--model { justify-content: flex-start; }
-
-.gemini-msg-bubble {
-  max-width: 82%;
-  padding: 0.5rem 0.75rem;
-  border-radius: 14px;
-  font-size: 0.8125rem;
-  line-height: 1.45;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.gemini-msg--user .gemini-msg-bubble {
-  background: linear-gradient(135deg, #1a73e8, #34a853);
-  color: #fff;
-  border-bottom-right-radius: 4px;
-}
-
-.gemini-msg--model .gemini-msg-bubble {
-  background: var(--white);
-  color: var(--gray-800);
-  border: 1px solid var(--card-border);
-  border-bottom-left-radius: 4px;
-}
-
-[data-theme="dark"] .gemini-msg--model .gemini-msg-bubble {
-  background: var(--gray-200);
-}
-
-/* Typing indicator */
-.gemini-thinking {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 0.5rem 0.75rem;
-}
-
-.gemini-thinking span {
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #1a73e8;
-  animation: bounce 1.2s infinite ease-in-out;
-}
-
-.gemini-thinking span:nth-child(1) { animation-delay: 0s; }
-.gemini-thinking span:nth-child(2) { animation-delay: 0.2s; }
-.gemini-thinking span:nth-child(3) { animation-delay: 0.4s; }
-
-@keyframes bounce {
-  0%, 60%, 100% { transform: translateY(0); }
-  30% { transform: translateY(-6px); }
-}
-
-.gemini-chat-input-row {
-  display: flex;
-  gap: 0.5rem;
-  padding: 0.625rem 0.75rem;
-  border-top: 1px solid var(--card-border);
-  background: var(--white);
-}
-
-.gemini-chat-input {
-  flex: 1;
-  border: 1.5px solid var(--card-border);
-  border-radius: var(--radius);
-  padding: 0.375rem 0.75rem;
-  font-size: 0.8125rem;
-  font-family: var(--font-sans);
-  color: var(--gray-800);
-  background: var(--gray-50);
-  outline: none;
-  transition: border-color var(--transition);
-}
-
-.gemini-chat-input:focus {
-  border-color: #1a73e8;
-  background: var(--white);
-}
-
-[data-theme="dark"] .gemini-chat-input {
-  background: var(--gray-100);
-}
 
 /* ============================================================
    AI SMART ALLOCATION — matches system design

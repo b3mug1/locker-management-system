@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { getAssignments, assignLocker, releaseAssignment, releaseAllAssignments, importCombinedCSV, autoAssignLockers, geminiAllocate, geminiChat } from '../api/assignments';
+import { getAssignments, assignLocker, releaseAssignment, releaseAllAssignments, importCombinedCSV, geminiAllocate } from '../api/assignments';
 import { getStudents } from '../api/students';
 import { getLockers } from '../api/lockers';
 import { useWebSocket } from '../hooks/useWebSocket';
@@ -20,27 +20,12 @@ function AssignmentsPage() {
   const csvInputRef = useRef(null);
   const [importStatus, setImportStatus] = useState(null);
 
-  // Classic 4-tier auto-assign
-  const [autoAssignPlan, setAutoAssignPlan] = useState(null);
-  const [aiLoading, setAiLoading] = useState(false);
-
-  // Gemini allocation
+  // Gemini allocation states
   const [geminiPlan, setGeminiPlan] = useState(null);
   const [geminiLoading, setGeminiLoading] = useState(false);
   const [geminiInstruction, setGeminiInstruction] = useState('');
-  const [showGeminiInput, setShowGeminiInput] = useState(false);
-  const [activeTab, setActiveTab] = useState('classic'); // 'classic' | 'gemini'
 
-  // Gemini Chat
-  const [chatOpen, setChatOpen] = useState(false);
-  const [chatMessages, setChatMessages] = useState([
-    { role: 'model', text: '👋 Привет! Я Gemini AI. Задайте вопрос о распределении локеров или состоянии системы.' }
-  ]);
-  const [chatInput, setChatInput] = useState('');
-  const [chatLoading, setChatLoading] = useState(false);
-  const chatEndRef = useRef(null);
-
-  // Table state
+  // Table sorting and pagination
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [sortCol, setSortCol] = useState('');
@@ -48,35 +33,75 @@ function AssignmentsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  const handleSort = (col) => { if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortCol(col); setSortDir('asc'); } };
-  const sortIcon = (col) => { if (sortCol !== col) return ' ⇅'; return sortDir === 'asc' ? ' ↑' : ' ↓'; };
+  const handleSort = (col) => {
+    if (sortCol === col) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortCol(col);
+      setSortDir('asc');
+    }
+  };
+
+  const sortIcon = (col) => {
+    if (sortCol !== col) return ' ⇅';
+    return sortDir === 'asc' ? ' ↑' : ' ↓';
+  };
 
   const fetchAll = useCallback(async () => {
     try {
-      const [aRes, sRes, lRes] = await Promise.all([getAssignments(0, 10000), getStudents(0, 10000), getLockers(0, 10000)]);
-      setAssignments(aRes.data); setStudents(sRes.data); setLockers(lRes.data);
-    } catch { setError(t('assign_failed_load')); }
-    finally { setLoading(false); }
+      const [aRes, sRes, lRes] = await Promise.all([
+        getAssignments(0, 10000),
+        getStudents(0, 10000),
+        getLockers(0, 10000)
+      ]);
+      setAssignments(aRes.data);
+      setStudents(sRes.data);
+      setLockers(lRes.data);
+    } catch {
+      setError(t('assign_failed_load'));
+    } finally {
+      setLoading(false);
+    }
   }, [t]);
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
-  useWebSocket({ assignment_change: fetchAll, locker_change: fetchAll, student_change: fetchAll });
+  useEffect(() => {
+    fetchAll();
+  }, [fetchAll]);
 
-  // Scroll chat to bottom
-  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatMessages, chatOpen]);
+  useWebSocket({
+    assignment_change: fetchAll,
+    locker_change: fetchAll,
+    student_change: fetchAll
+  });
 
   const filtered = useMemo(() => {
     let data = assignments;
-    if (search.trim()) { const q = search.toLowerCase(); data = data.filter(a => (a.student_name || '').toLowerCase().includes(q) || (a.locker_number || '').toLowerCase().includes(q)); }
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      data = data.filter(a =>
+        (a.student_name || '').toLowerCase().includes(q) ||
+        (a.locker_number || '').toLowerCase().includes(q)
+      );
+    }
     if (filterStatus === 'active') data = data.filter(a => !a.released_at);
     if (filterStatus === 'released') data = data.filter(a => a.released_at);
     if (sortCol) {
       data = [...data].sort((a, b) => {
         let va, vb;
-        if (sortCol === 'status') { va = a.released_at ? 1 : 0; vb = b.released_at ? 1 : 0; } else { va = a[sortCol]; vb = b[sortCol]; }
-        if (va == null) va = ''; if (vb == null) vb = '';
-        if (typeof va === 'string') va = va.toLowerCase(); if (typeof vb === 'string') vb = vb.toLowerCase();
-        if (va < vb) return sortDir === 'asc' ? -1 : 1; if (va > vb) return sortDir === 'asc' ? 1 : -1; return 0;
+        if (sortCol === 'status') {
+          va = a.released_at ? 1 : 0;
+          vb = b.released_at ? 1 : 0;
+        } else {
+          va = a[sortCol];
+          vb = b[sortCol];
+        }
+        if (va == null) va = '';
+        if (vb == null) vb = '';
+        if (typeof va === 'string') va = va.toLowerCase();
+        if (typeof vb === 'string') vb = vb.toLowerCase();
+        if (va < vb) return sortDir === 'asc' ? -1 : 1;
+        if (va > vb) return sortDir === 'asc' ? 1 : -1;
+        return 0;
       });
     }
     return data;
@@ -84,14 +109,25 @@ function AssignmentsPage() {
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const paginated = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-  useEffect(() => { setCurrentPage(1); }, [search, pageSize, filterStatus]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, pageSize, filterStatus]);
 
   const handleAssign = async (e, force = false) => {
     if (e) e.preventDefault();
-    setError(''); setSuccess('');
+    setError('');
+    setSuccess('');
     try {
-      await assignLocker({ student_id: Number(form.student_id), locker_id: Number(form.locker_id), force });
-      setSuccess(t('assign_success')); setForm({ student_id: '', locker_id: '' }); setShowForm(false); fetchAll();
+      await assignLocker({
+        student_id: Number(form.student_id),
+        locker_id: Number(form.locker_id),
+        force
+      });
+      setSuccess(t('assign_success'));
+      setForm({ student_id: '', locker_id: '' });
+      setShowForm(false);
+      fetchAll();
     } catch (err) {
       const detail = err.response?.data?.detail || '';
       if (err.response?.status === 409 && typeof detail === 'string' && detail.startsWith('priority_students_waiting:')) {
@@ -102,7 +138,10 @@ function AssignmentsPage() {
           message: t('assign_priority_warning').replace('{count}', count),
           variant: 'warning',
           confirmText: t('assign_assign_anyway'),
-          onConfirm: () => { setConfirmModal(m => ({ ...m, open: false })); handleAssign(null, true); },
+          onConfirm: () => {
+            setConfirmModal(m => ({ ...m, open: false }));
+            handleAssign(null, true);
+          },
         });
       } else {
         setError(detail || t('assign_failed'));
@@ -113,13 +152,24 @@ function AssignmentsPage() {
   const handleRelease = async (id) => {
     const a = assignments.find(x => x.id === id);
     setConfirmModal({
-      open: true, title: t('assign_release_title'),
-      message: t('assign_release_msg', { locker: a?.locker_number || '#' + id, student: a?.student_name || t('assign_student_lc') }),
-      variant: 'warning', confirmText: t('assign_release'),
+      open: true,
+      title: t('assign_release_title'),
+      message: t('assign_release_msg', {
+        locker: a?.locker_number || '#' + id,
+        student: a?.student_name || t('assign_student_lc')
+      }),
+      variant: 'warning',
+      confirmText: t('assign_release'),
       onConfirm: async () => {
-        setConfirmModal(m => ({ ...m, open: false })); setError('');
-        try { await releaseAssignment(id); setSuccess(t('assign_released')); fetchAll(); }
-        catch (err) { setError(err.response?.data?.detail || t('assign_release_failed')); }
+        setConfirmModal(m => ({ ...m, open: false }));
+        setError('');
+        try {
+          await releaseAssignment(id);
+          setSuccess(t('assign_released'));
+          fetchAll();
+        } catch (err) {
+          setError(err.response?.data?.detail || t('assign_release_failed'));
+        }
       },
     });
   };
@@ -135,80 +185,60 @@ function AssignmentsPage() {
       variant: 'danger',
       confirmText: t('assign_release_all_confirm'),
       onConfirm: async () => {
-        setConfirmModal(m => ({ ...m, open: false })); setError('');
+        setConfirmModal(m => ({ ...m, open: false }));
+        setError('');
         try {
           const res = await releaseAllAssignments();
           setSuccess(t('assign_release_all_success', { count: res.data.released }));
           fetchAll();
-        } catch (err) { setError(err.response?.data?.detail || t('assign_release_failed')); }
-      },
-    });
-  };
-
-  const formatDate = (d) => d ? new Date(d).toLocaleString() : '—';
-  const clearFilters = () => { setSearch(''); setFilterStatus(''); setSortCol(''); };
-  const hasFilters = search || filterStatus;
-
-  const handleCSVImport = async (e) => {
-    const file = e.target.files[0]; if (!file) return;
-    setImportStatus(null); setError(''); setSuccess('');
-    try { const res = await importCombinedCSV(file); setImportStatus(res.data); fetchAll(); }
-    catch (err) { setError(err.response?.data?.detail || t('csv_combined_failed')); }
-    e.target.value = '';
-  };
-
-  // ── Classic 4-tier auto-assign ──────────────────────────────────────────
-  const handleAutoAssignPreview = async () => {
-    setError(''); setSuccess(''); setAiLoading(true); setActiveTab('classic');
-    try {
-      const res = await autoAssignLockers({ commit: false });
-      setAutoAssignPlan(res.data);
-      if (res.data.planned === 0) setSuccess(t('auto_empty'));
-    } catch (err) {
-      setError(err.response?.data?.detail || t('auto_preview_failed'));
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
-  const handleAutoAssignApply = () => {
-    const planned = autoAssignPlan?.planned || 0;
-    if (planned === 0) return;
-    setConfirmModal({
-      open: true,
-      title: t('auto_apply_title'),
-      message: t('auto_apply_msg', { count: planned }),
-      variant: 'warning',
-      confirmText: t('auto_apply_confirm'),
-      onConfirm: async () => {
-        setConfirmModal(m => ({ ...m, open: false }));
-        setError(''); setSuccess('');
-        try {
-          const res = await autoAssignLockers({ commit: true });
-          setSuccess(t('auto_success', { count: res.data.created }));
-          setAutoAssignPlan(null);
-          fetchAll();
         } catch (err) {
-          setError(err.response?.data?.detail || t('auto_failed'));
+          setError(err.response?.data?.detail || t('assign_release_failed'));
         }
       },
     });
   };
 
-  // ── Gemini allocation ───────────────────────────────────────────────────
+  const formatDate = (d) => d ? new Date(d).toLocaleString() : '—';
+  const clearFilters = () => {
+    setSearch('');
+    setFilterStatus('');
+    setSortCol('');
+  };
+  const hasFilters = search || filterStatus;
+
+  const handleCSVImport = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setImportStatus(null);
+    setError('');
+    setSuccess('');
+    try {
+      const res = await importCombinedCSV(file);
+      setImportStatus(res.data);
+      fetchAll();
+    } catch (err) {
+      setError(err.response?.data?.detail || t('csv_combined_failed'));
+    }
+    e.target.value = '';
+  };
+
+  // ── Gemini AI Allocation ───────────────────────────────────────────────
   const handleGeminiPreview = async () => {
-    setError(''); setSuccess(''); setGeminiLoading(true); setActiveTab('gemini');
+    setError('');
+    setSuccess('');
+    setGeminiLoading(true);
     try {
       const res = await geminiAllocate({ commit: false, instruction: geminiInstruction });
       setGeminiPlan(res.data);
-      setShowGeminiInput(false);
-      if (res.data.planned === 0) setSuccess('Gemini: все студенты уже распределены.');
+      if (res.data.planned === 0) {
+        setSuccess('Gemini AI: все студенты уже успешно распределены по ячейкам.');
+      }
     } catch (err) {
-      const detail = err.response?.data?.detail || 'Ошибка Gemini API';
+      const detail = err.response?.data?.detail || 'Ошибка соединения с Gemini API';
       if (detail.includes('GEMINI_API_KEY')) {
-        setError('Gemini API ключ не настроен. Добавьте GEMINI_API_KEY в backend/.env и перезапустите сервер.');
+        setError('Конфигурация Gemini API отсутствует. Пожалуйста, укажите GEMINI_API_KEY в файле .env в корне проекта.');
       } else {
-        setError(`Gemini: ${detail}`);
+        setError(`Gemini AI: ${detail}`);
       }
     } finally {
       setGeminiLoading(false);
@@ -220,46 +250,25 @@ function AssignmentsPage() {
     if (planned === 0) return;
     setConfirmModal({
       open: true,
-      title: 'Применить распределение Gemini?',
-      message: `Gemini предлагает назначить ${planned} студентов. Подтвердить?`,
+      title: 'Применить распределение локеров?',
+      message: `Подтвердить создание ${planned} назначений локеров, подобранных Gemini AI?`,
       variant: 'warning',
       confirmText: 'Применить',
       onConfirm: async () => {
         setConfirmModal(m => ({ ...m, open: false }));
-        setError(''); setSuccess('');
+        setError('');
+        setSuccess('');
         try {
           const res = await geminiAllocate({ commit: true, instruction: geminiInstruction });
-          setSuccess(`Gemini успешно распределил ${res.data.created} студентов!`);
+          setSuccess(`ИИ-распределение успешно завершено: создано ${res.data.created} назначений.`);
           setGeminiPlan(null);
+          setGeminiInstruction('');
           fetchAll();
         } catch (err) {
-          setError(err.response?.data?.detail || 'Ошибка применения Gemini');
+          setError(err.response?.data?.detail || 'Ошибка сохранения распределения.');
         }
       },
     });
-  };
-
-  // ── Gemini Chat ─────────────────────────────────────────────────────────
-  const handleChatSend = async () => {
-    const msg = chatInput.trim();
-    if (!msg || chatLoading) return;
-    const newMessages = [...chatMessages, { role: 'user', text: msg }];
-    setChatMessages(newMessages);
-    setChatInput('');
-    setChatLoading(true);
-    try {
-      // Build Gemini history format
-      const history = chatMessages
-        .filter(m => m.role !== 'model' || chatMessages.indexOf(m) > 0)
-        .map(m => ({ role: m.role, parts: [m.text] }));
-      const res = await geminiChat(msg, history);
-      setChatMessages(prev => [...prev, { role: 'model', text: res.data.reply }]);
-    } catch (err) {
-      const detail = err.response?.data?.detail || 'Ошибка';
-      setChatMessages(prev => [...prev, { role: 'model', text: `${detail}` }]);
-    } finally {
-      setChatLoading(false);
-    }
   };
 
   const tierBadgeClass = (tier) => {
@@ -271,8 +280,6 @@ function AssignmentsPage() {
     }
   };
 
-  const currentPlan = activeTab === 'gemini' ? geminiPlan : autoAssignPlan;
-
   if (loading) return <div className="loading">{t('assign_loading')}</div>;
 
   return (
@@ -281,25 +288,11 @@ function AssignmentsPage() {
       <div className="page-header">
         <div>
           <h1>{t('assign_title')}</h1>
-          <p className="page-subtitle">{t('ai_auto_desc')}</p>
+          <p className="page-subtitle">Просмотр, создание и управление активными назначениями шкафчиков студентам кампуса.</p>
         </div>
         <div className="page-header-actions">
           <button className="btn btn-outline" onClick={() => csvInputRef.current?.click()}>{t('csv_combined_import')}</button>
           <input type="file" accept=".csv" ref={csvInputRef} style={{ display: 'none' }} onChange={handleCSVImport} />
-
-          {/* Classic AI */}
-          <button className="btn btn-ai-primary" onClick={handleAutoAssignPreview} disabled={aiLoading}>
-            {aiLoading ? 'Расчёт...' : t('ai_preview_btn')}
-          </button>
-
-          {/* Gemini AI */}
-          <button
-            className="btn btn-gemini"
-            onClick={() => setShowGeminiInput(v => !v)}
-            disabled={geminiLoading}
-          >
-            {geminiLoading ? 'Gemini думает...' : 'Gemini ИИ'}
-          </button>
 
           <button
             className="btn btn-danger"
@@ -315,101 +308,155 @@ function AssignmentsPage() {
         </div>
       </div>
 
-      {/* ─── Gemini Instruction Input ─────────────────────────────────── */}
-      {showGeminiInput && (
-        <div className="gemini-instruction-bar">
-          <div className="gemini-instruction-icon">AI</div>
-          <input
-            type="text"
-            className="gemini-instruction-input"
-            placeholder="Дополнительные инструкции (необязательно): напр. «приоритет группе SE-2204», «только 1-й этаж»..."
-            value={geminiInstruction}
-            onChange={e => setGeminiInstruction(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleGeminiPreview()}
-          />
-          <button className="btn btn-gemini" onClick={handleGeminiPreview} disabled={geminiLoading}>
-            {geminiLoading ? 'Думает...' : 'Запустить Gemini'}
-          </button>
-          <button className="btn btn-outline btn-sm" onClick={() => setShowGeminiInput(false)}>✕</button>
-        </div>
-      )}
-
       {error && <div className="alert alert-error">{error}</div>}
       {success && <div className="alert alert-success">{success}</div>}
       {importStatus && (
         <div className="alert alert-success">
-          {t('csv_combined_result', { students: importStatus.created_students, lockers: importStatus.created_lockers, assignments: importStatus.created_assignments, skipped: importStatus.skipped })}
-          {importStatus.errors?.length > 0 && (<ul className="import-errors">{importStatus.errors.map((e, i) => <li key={i}>{e}</li>)}</ul>)}
+          {t('csv_combined_result', {
+            students: importStatus.created_students,
+            lockers: importStatus.created_lockers,
+            assignments: importStatus.created_assignments,
+            skipped: importStatus.skipped
+          })}
+          {importStatus.errors?.length > 0 && (
+            <ul className="import-errors">
+              {importStatus.errors.map((e, i) => <li key={i}>{e}</li>)}
+            </ul>
+          )}
         </div>
       )}
 
-      {/* ─── AI Preview Panel ─────────────────────────────────────────── */}
-      {currentPlan && (
-        <div className={`ai-preview-card ${activeTab === 'gemini' ? 'ai-preview-card--gemini' : ''}`}>
+      {/* ─── AI Smart Allocation Control Panel (System Design Cohesive Block) ─── */}
+      <div className="ai-allocation-control-card">
+        <div className="ai-allocation-card-header">
+          <div className="ai-title-section">
+            <h3>Умное распределение локеров ИИ</h3>
+            <p className="ai-subtitle-text">
+              Автоматическое распределение шкафчиков на основе академического приоритета, успеваемости (GPA), уровня активности и медицинских льгот.
+            </p>
+          </div>
+          <div className="ai-action-section">
+            <button
+              className="btn btn-gemini"
+              onClick={handleGeminiPreview}
+              disabled={geminiLoading}
+            >
+              {geminiLoading ? 'Выполняется расчет...' : 'Запустить ИИ-распределение'}
+            </button>
+          </div>
+        </div>
+
+        <div className="ai-allocation-rules-grid">
+          <div className="rule-step">
+            <span className="step-num">I</span>
+            <div className="step-info">
+              <strong>Приоритетная категория</strong>
+              <span>Льготные категории гарантированно распределяются на первый (доступный) этаж.</span>
+            </div>
+          </div>
+          <div className="rule-step">
+            <span className="step-num">II</span>
+            <div className="step-info">
+              <strong>Высокая активность</strong>
+              <span>Студенты с высоким рейтингом использования локеров получают приоритетный доступ.</span>
+            </div>
+          </div>
+          <div className="rule-step">
+            <span className="step-num">III</span>
+            <div className="step-info">
+              <strong>Успеваемость (GPA)</strong>
+              <span>Отличники и студенты с высоким средним баллом распределяются в следующую очередь.</span>
+            </div>
+          </div>
+          <div className="rule-step">
+            <span className="step-num">IV</span>
+            <div className="step-info">
+              <strong>Общий поток</strong>
+              <span>Остальные незанятые студенты распределяются по оставшимся свободным локерам.</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="ai-custom-prompt-row">
+          <label className="ai-prompt-label">Дополнительные инструкции для ИИ (необязательно):</label>
+          <div className="ai-prompt-input-wrapper">
+            <input
+              type="text"
+              className="ai-prompt-input"
+              placeholder="Например: «приоритетно распределить группу SE-2204 на 2 этаж» или «выделить локеры только для первого курса»"
+              value={geminiInstruction}
+              onChange={e => setGeminiInstruction(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleGeminiPreview()}
+              disabled={geminiLoading}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* ─── AI Allocation Simulation Results ─────────────────────────────── */}
+      {geminiPlan && (
+        <div className="ai-preview-card ai-preview-card--gemini">
           <div className="ai-preview-header">
             <div className="ai-preview-title-wrap">
-              <h2>{activeTab === 'gemini' ? 'Gemini AI Allocation' : t('ai_auto_title')}</h2>
-              <span className={`badge-ai-pulse ${activeTab === 'gemini' ? 'badge-gemini-pulse' : ''}`}>
-                {activeTab === 'gemini' ? 'Gemini 1.5 Flash' : 'AI Algorithm Active'}
-              </span>
-              {activeTab === 'gemini' && currentPlan.summary && (
-                <p className="gemini-summary-inline">{currentPlan.summary}</p>
+              <h2>Результаты симуляции распределения Gemini AI</h2>
+              <span className="badge-ai-pulse badge-gemini-pulse">Gemini 1.5 Flash</span>
+              {geminiPlan.summary && (
+                <p className="gemini-summary-inline">{geminiPlan.summary}</p>
               )}
             </div>
             <div className="ai-header-actions">
               <button
-                className={`btn btn-sm ${activeTab === 'gemini' ? 'btn-gemini' : 'btn-success'}`}
-                onClick={activeTab === 'gemini' ? handleGeminiApply : handleAutoAssignApply}
-                disabled={!currentPlan?.planned}
+                className="btn btn-sm btn-gemini"
+                onClick={handleGeminiApply}
+                disabled={!geminiPlan.planned}
               >
-                Применить ({currentPlan.planned})
+                Применить назначение ({geminiPlan.planned})
               </button>
-              <button className="btn btn-sm btn-outline" onClick={() => { setAutoAssignPlan(null); setGeminiPlan(null); }}>
-                {t('auto_hide')}
+              <button className="btn btn-sm btn-outline" onClick={() => setGeminiPlan(null)}>
+                Скрыть
               </button>
             </div>
           </div>
 
-          {/* Tier stats */}
           <div className="ai-stats-row">
             <div className="ai-stat-pill pill-tier-1">
               <span className="pill-icon">I</span>
               <div className="pill-info">
-                <span className="pill-val">{currentPlan.tier_1_count || 0}</span>
+                <span className="pill-val">{geminiPlan.tier_1_count || 0}</span>
                 <span className="pill-lbl">{t('ai_tier_1')}</span>
               </div>
             </div>
             <div className="ai-stat-pill pill-tier-2">
               <span className="pill-icon">II</span>
               <div className="pill-info">
-                <span className="pill-val">{currentPlan.tier_2_count || 0}</span>
+                <span className="pill-val">{geminiPlan.tier_2_count || 0}</span>
                 <span className="pill-lbl">{t('ai_tier_2')}</span>
               </div>
             </div>
             <div className="ai-stat-pill pill-tier-3">
               <span className="pill-icon">III</span>
               <div className="pill-info">
-                <span className="pill-val">{currentPlan.tier_3_count || 0}</span>
+                <span className="pill-val">{geminiPlan.tier_3_count || 0}</span>
                 <span className="pill-lbl">{t('ai_tier_3')}</span>
               </div>
             </div>
             <div className="ai-stat-pill pill-tier-4">
               <span className="pill-icon">IV</span>
               <div className="pill-info">
-                <span className="pill-val">{currentPlan.tier_4_count || 0}</span>
+                <span className="pill-val">{geminiPlan.tier_4_count || 0}</span>
                 <span className="pill-lbl">{t('ai_tier_4')}</span>
               </div>
             </div>
           </div>
 
           <p className="ai-summary-text">
-            {t('ai_simulation_summary', { planned: currentPlan.planned, spots: currentPlan.available_spots, skipped: currentPlan.skipped_students })}
+            Симуляция распределения: запланировано {geminiPlan.planned} назначений, свободно {geminiPlan.available_spots} мест, пропущено {geminiPlan.skipped_students} студентов.
           </p>
 
-          {activeTab === 'gemini' && currentPlan.insights && (
+          {geminiPlan.insights && (
             <div className="gemini-insights-box">
               <span className="gemini-insights-icon">Info:</span>
-              <p>{currentPlan.insights}</p>
+              <p>{geminiPlan.insights}</p>
             </div>
           )}
 
@@ -426,7 +473,7 @@ function AssignmentsPage() {
                 </tr>
               </thead>
               <tbody>
-                {currentPlan.items.slice(0, 50).map((item, idx) => (
+                {geminiPlan.items.slice(0, 50).map((item, idx) => (
                   <tr key={`${item.student_id}-${item.locker_id}-${idx}`}>
                     <td>
                       <span className={`badge ${tierBadgeClass(item.tier)}`}>
@@ -446,7 +493,7 @@ function AssignmentsPage() {
                       </span>
                     </td>
                     <td className="ai-reason-cell">
-                      <span className={`ai-reason-badge ${activeTab === 'gemini' ? 'ai-reason-badge--gemini' : ''}`}>
+                      <span className="ai-reason-badge ai-reason-badge--gemini">
                         {item.ai_reason}
                       </span>
                     </td>
@@ -455,9 +502,9 @@ function AssignmentsPage() {
               </tbody>
             </table>
           </div>
-          {currentPlan.items.length > 50 && (
+          {geminiPlan.items.length > 50 && (
             <p className="analytics-sub text-center" style={{ marginTop: '0.5rem' }}>
-              Показаны первые 50 из {currentPlan.items.length} назначений.
+              Показаны первые 50 из {geminiPlan.items.length} назначений.
             </p>
           )}
         </div>
@@ -573,62 +620,6 @@ function AssignmentsPage() {
           <button className="btn btn-sm btn-outline" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}>→</button>
         </div>
       )}
-
-      {/* ─── Gemini Chat Widget ──────────────────────────────────────── */}
-      <div className={`gemini-chat-widget ${chatOpen ? 'gemini-chat-widget--open' : ''}`}>
-        <button
-          className="gemini-chat-toggle"
-          onClick={() => setChatOpen(v => !v)}
-          title="Gemini AI Ассистент"
-        >
-          {chatOpen ? '✕' : 'AI'}
-          {!chatOpen && <span className="gemini-chat-toggle-label">AI Ассистент</span>}
-        </button>
-
-        {chatOpen && (
-          <div className="gemini-chat-panel">
-            <div className="gemini-chat-header">
-              <span className="gemini-chat-title">Gemini AI Ассистент</span>
-              <span className="gemini-model-tag">gemini-1.5-flash</span>
-            </div>
-            <div className="gemini-chat-messages">
-              {chatMessages.map((m, i) => (
-                <div key={i} className={`gemini-msg gemini-msg--${m.role}`}>
-                  <div className="gemini-msg-bubble">{m.text}</div>
-                </div>
-              ))}
-              {chatLoading && (
-                <div className="gemini-msg gemini-msg--model">
-                  <div className="gemini-msg-bubble gemini-thinking">
-                    <span />
-                    <span />
-                    <span />
-                  </div>
-                </div>
-              )}
-              <div ref={chatEndRef} />
-            </div>
-            <div className="gemini-chat-input-row">
-              <input
-                type="text"
-                className="gemini-chat-input"
-                placeholder="Спросите Gemini о локерах..."
-                value={chatInput}
-                onChange={e => setChatInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleChatSend()}
-                disabled={chatLoading}
-              />
-              <button
-                className="btn btn-gemini btn-sm"
-                onClick={handleChatSend}
-                disabled={chatLoading || !chatInput.trim()}
-              >
-                →
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
 
       <ConfirmModal
         open={confirmModal.open}
