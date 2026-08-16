@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { getStudents, createStudent, updateStudent, deleteStudent, importStudentsCSV } from '../api/students';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useLanguage } from '../context/LanguageContext';
@@ -36,7 +36,7 @@ function StudentsPage() {
   };
 
   const fetchStudents = useCallback(async () => {
-    try { const res = await getStudents(0, 500); setStudents(res.data); }
+    try { const res = await getStudents(0, 10000); setStudents(res.data); }
     catch { setError(t('students_failed_load')); }
     finally { setLoading(false); }
   }, [t]);

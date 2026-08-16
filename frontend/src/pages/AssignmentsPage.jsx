@@ -33,7 +33,7 @@ function AssignmentsPage() {
 
   const fetchAll = useCallback(async () => {
     try {
-      const [aRes, sRes, lRes] = await Promise.all([getAssignments(0, 500), getStudents(0, 500), getLockers(0, 500)]);
+      const [aRes, sRes, lRes] = await Promise.all([getAssignments(0, 10000), getStudents(0, 10000), getLockers(0, 10000)]);
       setAssignments(aRes.data); setStudents(sRes.data); setLockers(lRes.data);
     } catch { setError(t('assign_failed_load')); }
     finally { setLoading(false); }

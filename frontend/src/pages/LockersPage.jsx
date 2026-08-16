@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { getLockers, createLocker, updateLocker, deleteLocker, importLockersCSV } from '../api/lockers';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useLanguage } from '../context/LanguageContext';
@@ -63,7 +63,7 @@ function LockersPage() {
   const handleAccessChange = (at) => { setForm({ ...form, access_type: at, capacity: LOCKER_RULES[form.size][at] }); };
 
   const fetchLockers = useCallback(async () => {
-    try { const res = await getLockers(0, 500); setLockers(res.data); }
+    try { const res = await getLockers(0, 10000); setLockers(res.data); }
     catch { setError(t('lockers_failed_load')); }
     finally { setLoading(false); }
   }, [t]);
