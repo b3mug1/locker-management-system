@@ -81,7 +81,7 @@ function Navbar() {
     <nav className="navbar">
       <div className="navbar-brand">
         <Link to="/dashboard">
-          <img src="/logo.jpeg" alt="Logo" className="navbar-logo" />
+          <img src="/logo.png" alt="AITU Logo" className="navbar-logo" />
           <span className="brand-text">{t('nav_brand')}</span>
         </Link>
       </div>

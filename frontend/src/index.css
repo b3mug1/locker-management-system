@@ -219,8 +219,7 @@ a:hover {
 .navbar-logo {
   height: 36px;
   width: 36px;
-  object-fit: cover;
-  border-radius: 8px;
+  object-fit: contain;
   transition: transform var(--transition);
 }
 
