@@ -19,7 +19,7 @@ router = APIRouter(prefix="/lockers", tags=["Lockers"])
 @router.get("/", response_model=list[LockerRead])
 async def list_lockers(
     skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
+    limit: int = Query(1000, ge=1, le=10000),
     db: AsyncSession = Depends(get_db),
     _admin: User = Depends(get_current_admin),
 ):

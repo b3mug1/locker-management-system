@@ -28,7 +28,7 @@ router = APIRouter(prefix="/assignments", tags=["Assignments"])
 @router.get("/", response_model=list[AssignmentRead])
 async def list_assignments(
     skip: int = Query(0, ge=0),
-    limit: int = Query(200, ge=1, le=1000),
+    limit: int = Query(1000, ge=1, le=10000),
     db: AsyncSession = Depends(get_db),
     _admin: User = Depends(get_current_admin),
 ):
