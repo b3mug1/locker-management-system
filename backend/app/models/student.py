@@ -16,6 +16,10 @@ class Student(Base):
     course: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     # Inclusive / priority status — none | disability | orphan | vision | hearing | other
     inclusive_status: Mapped[str] = mapped_column(String(50), nullable=False, default="none")
+    # AI Allocation Tier 2: activity score (0-100)
+    activity_score: Mapped[int] = mapped_column(Integer, nullable=False, default=50)
+    # AI Allocation Tier 3: academic GPA (0.00 - 4.00)
+    gpa: Mapped[float] = mapped_column(default=3.0, nullable=False)
 
     assignments = relationship("Assignment", back_populates="student", lazy="selectin", cascade="all, delete-orphan", passive_deletes=True)
     user = relationship("User", back_populates="student", uselist=False, lazy="selectin")
