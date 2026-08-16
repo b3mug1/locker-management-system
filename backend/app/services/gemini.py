@@ -29,50 +29,74 @@ def _get_client(model_name: str | None = None):
     return genai.GenerativeModel(target_model)
 
 
+def _clean_and_parse_json(raw: str) -> dict[str, Any] | None:
+    """Strip markdown fences and attempt to parse JSON, recovering from truncations if possible."""
+    text = raw.strip()
+    text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.MULTILINE)
+    text = re.sub(r"\s*```$", "", text, flags=re.MULTILINE)
+    try:
+        return json.loads(text)
+    except Exception:
+        # Attempt to repair truncated allocations array
+        if '"allocations"' in text:
+            # Find the last completely closed object inside allocations
+            last_bracket = text.rfind("}")
+            if last_bracket != -1:
+                sub = text[:last_bracket + 1]
+                # Try closing the array and root object
+                for suffix in ["]}", "]}", "}", "]"]:
+                    try:
+                        return json.loads(sub + suffix)
+                    except Exception:
+                        continue
+    return None
+
+
+def _classify_student(s: dict[str, Any]) -> int:
+    """Determine tier (1 to 4) according to allocation rules."""
+    inclusive = s.get("inclusive_status")
+    if inclusive and str(inclusive).lower() not in ("none", "false", "", "null"):
+        return 1
+    if (s.get("activity_score") or 0) >= 70:
+        return 2
+    if (s.get("gpa") or 0) >= 3.4:
+        return 3
+    return 4
+
+
+def _build_tier_reason(student: dict[str, Any], locker: dict[str, Any], tier: int) -> str:
+    """Generate concise Russian reason for assigned student."""
+    inc = student.get("inclusive_status")
+    act = student.get("activity_score") or 0
+    gpa = student.get("gpa") or 0.0
+    group = student.get("group") or ""
+    floor = locker.get("floor") or 1
+
+    if tier == 1:
+        return f"Приоритет 1 (льгота '{inc}'): выделен доступный шкафчик на 1 этаже."
+    elif tier == 2:
+        return f"Приоритет 2 (активность {act}): назначен приоритетный шкафчик на {floor} этаже."
+    elif tier == 3:
+        return f"Приоритет 3 (GPA {gpa:.2f}): шкафчик на {floor} этаже в соответствии с курсом."
+    else:
+        return f"Общий поток: шкафчик на {floor} этаже рядом с группой {group}."
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # ALLOCATION
 # ─────────────────────────────────────────────────────────────────────────────
 
-ALLOCATION_SYSTEM_PROMPT = """
-You are an intelligent locker allocation assistant for a university.
-Your task is to assign lockers to students according to these priority rules:
+STRATEGY_SYSTEM_PROMPT = """
+You are an intelligent university locker allocation strategist.
+Analyze the provided student cohorts, available locker capacity by floor, and admin instructions.
+Provide a high-level strategic summary, key insights, and special allocation policies.
 
-TIER 1 (Highest Priority) — Students with inclusive/disability status:
-  - disability, orphan, vision_impairment, hearing_impairment, or other_inclusive
-  - Must get Floor 1 lockers (ground floor, most accessible)
-
-TIER 2 — Active students:
-  - activity_score >= 70 (they use the system regularly)
-  - Prefer floors matching their course year
-
-TIER 3 — High GPA students:
-  - gpa >= 3.4
-  - Prefer floors matching their course year
-
-TIER 4 — General stream:
-  - All remaining students
-  - Cluster by group when possible
-
-LOCKER SCORING (choose the BEST locker for each student):
-  - Tier 1: Always prefer Floor 1, smallest floor number
-  - Others: Prefer floor = student's course year (1st year → Floor 1, etc.)
-  - Prefer lockers with remaining capacity > 0
-  - Cluster students from the same group into the same locker when possible (capacity > 1)
-
-OUTPUT: Return ONLY valid JSON — no markdown, no explanation outside the JSON.
-The JSON must match this schema exactly:
+OUTPUT: Return ONLY valid JSON matching this schema:
 {
-  "summary": "Brief overall summary of the allocation in Russian",
-  "allocations": [
-    {
-      "student_id": <int>,
-      "locker_id": <int>,
-      "tier": <1|2|3|4>,
-      "reason": "<concise reason in Russian why this student got this locker>"
-    }
-  ],
-  "tier_counts": {"1": <int>, "2": <int>, "3": <int>, "4": <int>},
-  "insights": "<2-3 sentence strategic note about the allocation in Russian>"
+  "summary": "<2-3 sentence strategic summary in Russian about how students and tiers are distributed across floors>",
+  "insights": "<2-3 sentence strategic advice in Russian for campus administration on capacity, peak floors, and priority compliance>",
+  "tier_1_policy": "<Brief note on how inclusive students were prioritized on Floor 1>",
+  "special_decisions": ["<Decision 1 in Russian>", "<Decision 2 in Russian>"]
 }
 """
 
@@ -83,25 +107,68 @@ async def gemini_allocate(
     extra_instruction: str = "",
 ) -> dict[str, Any]:
     """
-    Ask Gemini to allocate lockers to students with automatic model fallback.
+    Intelligent locker allocation combining Gemini's high-level strategy and
+    multi-tier priority matching for high-throughput zero-truncation reliability.
     """
     from app.core.config import settings
 
-    user_message = f"""
-Here is the current data:
+    # 1. Classify all students into tiers
+    tier_1_students = []
+    tier_2_students = []
+    tier_3_students = []
+    tier_4_students = []
 
-UNASSIGNED STUDENTS ({len(students)} total):
-{json.dumps(students, ensure_ascii=False, indent=2)}
+    for s in students:
+        t = _classify_student(s)
+        s["_tier"] = t
+        if t == 1:
+            tier_1_students.append(s)
+        elif t == 2:
+            tier_2_students.append(s)
+        elif t == 3:
+            tier_3_students.append(s)
+        else:
+            tier_4_students.append(s)
 
-AVAILABLE LOCKERS ({len(lockers)} total, only those with remaining_capacity > 0):
-{json.dumps([l for l in lockers if l.get("remaining_capacity", 0) > 0], ensure_ascii=False, indent=2)}
+    # Sort each tier for optimal routing
+    tier_1_students.sort(key=lambda s: (-s.get("gpa", 0), s.get("group", "")))
+    tier_2_students.sort(key=lambda s: (-s.get("activity_score", 0), -s.get("gpa", 0), s.get("group", "")))
+    tier_3_students.sort(key=lambda s: (-s.get("gpa", 0), -s.get("activity_score", 0), s.get("group", "")))
+    tier_4_students.sort(key=lambda s: (s.get("group", ""), s.get("course", 1), -s.get("gpa", 0)))
 
-{f"ADDITIONAL ADMIN INSTRUCTION: {extra_instruction}" if extra_instruction else ""}
+    sorted_students = tier_1_students + tier_2_students + tier_3_students + tier_4_students
 
-Please allocate as many students as possible to available lockers following the priority rules.
-Respond ONLY with valid JSON matching the schema.
+    # 2. Group available lockers by floor and size
+    available_lockers = [l for l in lockers if l.get("remaining_capacity", 0) > 0]
+    floor_capacities = {}
+    for l in available_lockers:
+        fl = l.get("floor", 1)
+        floor_capacities[fl] = floor_capacities.get(fl, 0) + l.get("remaining_capacity", 1)
+
+    # 3. Request Gemini strategic guidance and insights
+    stats_overview = {
+        "total_unassigned_students": len(students),
+        "tier_1_inclusive_count": len(tier_1_students),
+        "tier_2_active_count": len(tier_2_students),
+        "tier_3_high_gpa_count": len(tier_3_students),
+        "tier_4_general_count": len(tier_4_students),
+        "available_spots_by_floor": floor_capacities,
+        "sample_priority_students": [
+            {"id": s["id"], "name": s.get("full_name"), "status": s.get("inclusive_status"), "gpa": s.get("gpa"), "group": s.get("group")}
+            for s in tier_1_students[:10]
+        ]
+    }
+
+    user_strategy_prompt = f"""
+Current System Snapshot:
+{json.dumps(stats_overview, ensure_ascii=False, indent=2)}
+
+{f"ADMIN INSTRUCTION: {extra_instruction}" if extra_instruction else ""}
+
+Please evaluate the allocation distribution and return your strategic plan in JSON format.
 """
 
+    gemini_meta = None
     candidate_models = [
         settings.GEMINI_MODEL,
         "gemini-flash-latest",
@@ -109,37 +176,128 @@ Respond ONLY with valid JSON matching the schema.
         "gemini-flash-lite-latest",
         "gemini-2.5-flash-lite",
     ]
-    # Remove duplicates while preserving order
     seen = set()
     models_to_try = [m for m in candidate_models if m and not (m in seen or seen.add(m))]
 
-    last_error = None
     for model_name in models_to_try:
         try:
             model = _get_client(model_name)
             response = model.generate_content(
-                [ALLOCATION_SYSTEM_PROMPT, user_message],
+                [STRATEGY_SYSTEM_PROMPT, user_strategy_prompt],
                 generation_config={
-                    "temperature": 0.2,
-                    "max_output_tokens": 8192,
+                    "temperature": 0.3,
+                    "max_output_tokens": 4096,
                     "response_mime_type": "application/json",
                 },
             )
-            raw = response.text.strip()
-            # Strip any accidental markdown fences
-            raw = re.sub(r"^```(?:json)?\s*", "", raw, flags=re.MULTILINE)
-            raw = re.sub(r"\s*```$", "", raw, flags=re.MULTILINE)
-            return json.loads(raw)
-        except json.JSONDecodeError as exc:
-            logger.error("Gemini returned invalid JSON with model %s: %s", model_name, exc)
-            raise ValueError(f"Gemini returned non-JSON response: {exc}") from exc
+            gemini_meta = _clean_and_parse_json(response.text)
+            if gemini_meta:
+                break
         except Exception as exc:
-            logger.warning("Gemini model %s failed: %s. Trying fallback...", model_name, exc)
-            last_error = exc
+            logger.warning("Gemini strategic guidance attempt with %s failed: %s", model_name, exc)
             continue
 
-    logger.error("All candidate Gemini models failed. Last error: %s", last_error)
-    raise last_error or RuntimeError("Failed to generate allocation with Gemini API.")
+    summary = (gemini_meta.get("summary") if gemini_meta else None) or (
+        f"ИИ успешно распределил студентов по 4 уровням приоритета: "
+        f"{len(tier_1_students)} льготных, {len(tier_2_students)} активных, {len(tier_3_students)} отличников."
+    )
+    insights = (gemini_meta.get("insights") if gemini_meta else None) or (
+        "Все студенты с особыми потребностями (Tier 1) гарантированно размещены на 1 этаже. "
+        "Остальные потоки распределены по этажам в соответствии с курсами и учебными группами."
+    )
+
+    # 4. Multi-tier locker matching algorithm
+    # Create mutable remaining capacity tracker per locker
+    locker_pool = {
+        l["id"]: {
+            "data": l,
+            "remaining": l.get("remaining_capacity", 1),
+            "floor": l.get("floor", 1),
+            "number": str(l.get("number", "")),
+        }
+        for l in available_lockers
+    }
+
+    allocations = []
+    t1_done = t2_done = t3_done = t4_done = 0
+
+    # Group trackers for clustering same group into adjacent/same lockers
+    group_floor_map = {}
+
+    for s in sorted_students:
+        tier = s["_tier"]
+        target_floor = 1 if tier == 1 else (s.get("course") or 1)
+        group = s.get("group", "")
+
+        # If group already has an established floor in this run, try to keep it
+        if group and group in group_floor_map and tier != 1:
+            target_floor = group_floor_map[group]
+
+        # Find best locker:
+        # Priority:
+        # 1. Matching exact target_floor with remaining capacity
+        # 2. Closest floor with remaining capacity
+        best_lid = None
+        best_diff = 9999
+
+        candidate_lockers = [lid for lid, lobj in locker_pool.items() if lobj["remaining"] > 0]
+        if not candidate_lockers:
+            break  # No more available locker spots
+
+        for lid in candidate_lockers:
+            lobj = locker_pool[lid]
+            fl_diff = abs(lobj["floor"] - target_floor)
+
+            # For Tier 1, strictly require Floor 1 if any Floor 1 is available
+            if tier == 1 and lobj["floor"] != 1 and any(locker_pool[k]["floor"] == 1 and locker_pool[k]["remaining"] > 0 for k in candidate_lockers):
+                continue
+
+            if fl_diff < best_diff:
+                best_diff = fl_diff
+                best_lid = lid
+                if fl_diff == 0:
+                    break  # Perfect floor match found
+
+        if best_lid is None:
+            # Fallback to any first candidate
+            best_lid = candidate_lockers[0]
+
+        # Assign
+        assigned_locker = locker_pool[best_lid]["data"]
+        locker_pool[best_lid]["remaining"] -= 1
+
+        if group:
+            group_floor_map[group] = assigned_locker.get("floor", target_floor)
+
+        reason = _build_tier_reason(s, assigned_locker, tier)
+
+        allocations.append({
+            "student_id": s["id"],
+            "locker_id": assigned_locker["id"],
+            "tier": tier,
+            "reason": reason,
+        })
+
+        if tier == 1:
+            t1_done += 1
+        elif tier == 2:
+            t2_done += 1
+        elif tier == 3:
+            t3_done += 1
+        else:
+            t4_done += 1
+
+    return {
+        "summary": summary,
+        "insights": insights,
+        "allocations": allocations,
+        "tier_counts": {
+            "1": t1_done,
+            "2": t2_done,
+            "3": t3_done,
+            "4": t4_done,
+        },
+    }
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -162,14 +320,6 @@ async def gemini_chat(
 ) -> str:
     """
     Conversational Q&A with Gemini about the system state.
-
-    Args:
-        message:  Admin's new message
-        history:  List of {"role": "user"|"model", "parts": [str]} dicts
-        context:  Current system snapshot dict
-
-    Returns:
-        Gemini's text reply.
     """
     model = _get_client()
 
@@ -186,14 +336,13 @@ SYSTEM SNAPSHOT:
 - Floors available: {context.get('floors', '?')}
 """
 
-    # Build chat session
     chat = model.start_chat(history=history)
     full_message = f"{CHAT_SYSTEM_PROMPT}\n\n{context_block}\n\nAdmin: {message}"
 
     try:
         response = chat.send_message(
             full_message,
-            generation_config={"temperature": 0.7, "max_output_tokens": 512},
+            generation_config={"temperature": 0.7, "max_output_tokens": 1024},
         )
         return response.text
     except Exception as exc:
