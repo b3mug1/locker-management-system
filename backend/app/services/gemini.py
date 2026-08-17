@@ -25,7 +25,7 @@ def _get_client(model_name: str | None = None):
         )
     import google.generativeai as genai
     genai.configure(api_key=settings.GEMINI_API_KEY)
-    target_model = model_name or settings.GEMINI_MODEL or "gemini-flash-latest"
+    target_model = model_name or settings.GEMINI_MODEL or "gemini-3.7-flash"
     return genai.GenerativeModel(target_model)
 
 
@@ -186,10 +186,11 @@ Please evaluate the allocation distribution and return your strategic plan in JS
     gemini_meta = None
     candidate_models = [
         settings.GEMINI_MODEL,
-        "gemini-flash-latest",
-        "gemini-pro-latest",
-        "gemini-flash-lite-latest",
-        "gemini-2.5-flash-lite",
+        "gemini-3.7-flash",
+        "gemini-3.6-flash",
+        "gemini-3.5-flash",
+        "gemini-3.1-flash-lite",
+        "gemini-3-flash-preview",
     ]
     seen = set()
     models_to_try = [m for m in candidate_models if m and not (m in seen or seen.add(m))]
