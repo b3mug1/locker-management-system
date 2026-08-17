@@ -96,7 +96,7 @@ const translations = {
 
     // Lockers
     lockers_title: 'Lockers Management',
-    lockers_add: '+ Add Locker',
+    lockers_add: ' Add Locker',
     lockers_edit: 'Edit Locker',
     lockers_add_new: 'Add New Locker',
     lockers_number: 'Number',
