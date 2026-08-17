@@ -8,7 +8,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import { animateStagger } from '../utils/animations';
 
 function AssignmentsPage() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [assignments, setAssignments] = useState([]);
   const [students, setStudents] = useState([]);
   const [lockers, setLockers] = useState([]);
@@ -244,8 +244,9 @@ function AssignmentsPage() {
         setSuccess(t('ai_already_all_assigned'));
       }
     } catch (err) {
-      const detail = err.response?.data?.detail || 'Gemini API Error';
-      if (detail.includes('GEMINI_API_KEY')) {
+      console.error('Gemini allocation error:', err);
+      const detail = err.response?.data?.detail || err.message || 'Gemini API Error';
+      if (typeof detail === 'string' && detail.includes('GEMINI_API_KEY')) {
         setError(t('ai_api_key_missing'));
       } else {
         setError(`Gemini AI: ${detail}`);

@@ -3,7 +3,7 @@ import { getLockers, createLocker, updateLocker, deleteLocker, importLockersCSV 
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useLanguage } from '../context/LanguageContext';
 import ConfirmModal from '../components/ConfirmModal';
-import { animateStagger } from '../utils/animations';
+import { animateStagger, animateModalOpen } from '../utils/animations';
 
 function LockersPage() {
   const { t } = useLanguage();
@@ -17,7 +17,8 @@ function LockersPage() {
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [form, setForm] = useState({ number: '', size: 'medium', access_type: 'key', capacity: 2, floor: 1, status: 'active' });
   const [error, setError] = useState('');
-  const formRef = useRef(null);
+  const modalRef = useRef(null);
+  const overlayRef = useRef(null);
   const fileInputRef = useRef(null);
   const [confirmModal, setConfirmModal] = useState({ open: false, title: '', message: '', onConfirm: null });
   const [importStatus, setImportStatus] = useState(null);
@@ -28,6 +29,21 @@ function LockersPage() {
   const [filterAvailability, setFilterAvailability] = useState('');
   const [sortCol, setSortCol] = useState('');
   const [sortDir, setSortDir] = useState('asc');
+
+  useEffect(() => {
+    if (showForm && modalRef.current && overlayRef.current) {
+      animateModalOpen(modalRef.current, overlayRef.current);
+    }
+  }, [showForm]);
+
+  useEffect(() => {
+    if (!showForm) return;
+    const handleKey = (e) => {
+      if (e.key === 'Escape') handleCancel();
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [showForm]);
 
   const handleSort = (col) => { if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortCol(col); setSortDir('asc'); } };
   const sortIcon = (col) => { if (sortCol !== col) return ' \u2195'; return sortDir === 'asc' ? ' \u2191' : ' \u2193'; };
@@ -89,8 +105,8 @@ function LockersPage() {
 
   const handleEdit = (l) => {
     setForm({ number: l.number, size: l.size, access_type: l.access_type, capacity: l.capacity, floor: l.floor, status: l.status || 'active' });
-    setEditingId(l.id); setShowForm(true);
-    setTimeout(() => { formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 100);
+    setEditingId(l.id);
+    setShowForm(true);
   };
 
   const handleDelete = (id) => {
@@ -142,11 +158,19 @@ function LockersPage() {
       <div className="page-header">
         <h1>{t('lockers_title')}</h1>
         <div className="page-header-actions">
-          {selectedIds.size > 0 && <button className="btn btn-danger bulk-delete-btn" onClick={handleBulkDelete}>&#128465; {t('lockers_delete_selected', { count: selectedIds.size })}</button>}
+          {selectedIds.size > 0 && (
+            <button className="btn btn-danger bulk-delete-btn" onClick={handleBulkDelete}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle', marginRight: '6px' }}>
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+              {t('lockers_delete_selected', { count: selectedIds.size })}
+            </button>
+          )}
           <button className="btn btn-outline" onClick={() => fileInputRef.current?.click()}>{t('lockers_import_csv')}</button>
           <input type="file" accept=".csv" ref={fileInputRef} style={{ display: 'none' }} onChange={handleCSVImport} />
-          <button className="btn btn-primary" onClick={() => { setShowForm(!showForm); setEditingId(null); setForm({ number: '', size: 'medium', access_type: 'key', capacity: 2, floor: 1, status: 'active' }); }}>
-            {showForm ? t('btn_cancel') : t('lockers_add')}
+          <button className="btn btn-primary" onClick={() => { setEditingId(null); setForm({ number: '', size: 'medium', access_type: 'key', capacity: 2, floor: 1, status: 'active' }); setShowForm(true); }}>
+            + {t('lockers_add')}
           </button>
         </div>
       </div>
@@ -160,36 +184,60 @@ function LockersPage() {
       )}
 
       {showForm && (
-        <div className="form-card" ref={formRef}>
-          <h3>{editingId ? t('lockers_edit') : t('lockers_add_new')}</h3>
-          <form onSubmit={handleSubmit}>
-            <div className="form-row">
-              <div className="form-group"><label>{t('lockers_number')}</label><input type="text" value={form.number} onChange={(e) => setForm({ ...form, number: e.target.value })} placeholder="e.g. L-101" required /></div>
-              <div className="form-group"><label>{t('lockers_size')}</label>
-                <select value={form.size} onChange={(e) => handleSizeChange(e.target.value)}>
-                  <option value="small">{t('lockers_small')}</option><option value="medium">{t('lockers_medium')}</option><option value="large">{t('lockers_large')}</option>
-                </select>
-              </div>
-              <div className="form-group"><label>{t('lockers_access')}</label>
-                <select value={form.access_type} onChange={(e) => handleAccessChange(e.target.value)}>
-                  {Object.keys(LOCKER_RULES[form.size] || {}).map(at => <option key={at} value={at}>{at.charAt(0).toUpperCase() + at.slice(1)}</option>)}
-                </select>
-              </div>
+        <div className="modal-overlay" ref={overlayRef} onClick={handleCancel}>
+          <div className="modal-card locker-modal-card" ref={modalRef} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{editingId ? t('lockers_edit') : t('lockers_add_new')}</h3>
+              <button className="modal-close-btn" type="button" onClick={handleCancel} aria-label="Close">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
             </div>
-            <div className="form-row">
-              <div className="form-group"><label>{t('lockers_capacity_auto')}</label><input type="number" value={form.capacity} readOnly disabled /></div>
-              <div className="form-group"><label>{t('lockers_floor')}</label><input type="number" min="1" max="10" value={form.floor} onChange={(e) => setForm({ ...form, floor: Number(e.target.value) })} required /></div>
-              <div className="form-group"><label>{t('lockers_status')}</label>
-                <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-                  <option value="active">{t('lockers_active')}</option><option value="inactive">{t('lockers_inactive')}</option><option value="maintenance">{t('lockers_maintenance')}</option>
-                </select>
+            <form onSubmit={handleSubmit}>
+              <div className="locker-form-grid">
+                <div className="form-group">
+                  <label>{t('lockers_number')}</label>
+                  <input type="text" value={form.number} onChange={(e) => setForm({ ...form, number: e.target.value })} placeholder="e.g. L-101" required autoFocus />
+                </div>
+                <div className="form-group">
+                  <label>{t('lockers_floor')}</label>
+                  <input type="number" min="1" max="10" value={form.floor} onChange={(e) => setForm({ ...form, floor: Number(e.target.value) })} required />
+                </div>
+                <div className="form-group">
+                  <label>{t('lockers_size')}</label>
+                  <select value={form.size} onChange={(e) => handleSizeChange(e.target.value)}>
+                    <option value="small">{t('lockers_small')}</option>
+                    <option value="medium">{t('lockers_medium')}</option>
+                    <option value="large">{t('lockers_large')}</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>{t('lockers_access')}</label>
+                  <select value={form.access_type} onChange={(e) => handleAccessChange(e.target.value)}>
+                    {Object.keys(LOCKER_RULES[form.size] || {}).map(at => <option key={at} value={at}>{at.charAt(0).toUpperCase() + at.slice(1)}</option>)}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>{t('lockers_capacity_auto')}</label>
+                  <input type="number" value={form.capacity} readOnly disabled />
+                </div>
+                <div className="form-group">
+                  <label>{t('lockers_status')}</label>
+                  <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+                    <option value="active">{t('lockers_active')}</option>
+                    <option value="inactive">{t('lockers_inactive')}</option>
+                    <option value="maintenance">{t('lockers_maintenance')}</option>
+                  </select>
+                </div>
               </div>
-            </div>
-            <div className="form-actions">
-              <button className="btn btn-primary" type="submit">{editingId ? t('btn_update') : t('btn_create')}</button>
-              <button className="btn btn-outline" type="button" onClick={handleCancel}>{t('btn_cancel')}</button>
-            </div>
-          </form>
+              <div className="modal-actions">
+                <button className="btn btn-outline" type="button" onClick={handleCancel}>{t('btn_cancel')}</button>
+                <button className="btn btn-primary" type="submit">{editingId ? t('btn_update') : t('btn_create')}</button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 

@@ -3,7 +3,7 @@ import { getStudents, createStudent, updateStudent, deleteStudent, importStudent
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useLanguage } from '../context/LanguageContext';
 import ConfirmModal from '../components/ConfirmModal';
-import { animateStagger } from '../utils/animations';
+import { animateStagger, animateModalOpen } from '../utils/animations';
 
 function StudentsPage() {
   const { t } = useLanguage();
@@ -19,6 +19,8 @@ function StudentsPage() {
   const [pageSize, setPageSize] = useState(10);
   const [confirmModal, setConfirmModal] = useState({ open: false, title: '', message: '', onConfirm: null });
   const fileInputRef = useRef(null);
+  const modalRef = useRef(null);
+  const overlayRef = useRef(null);
   const [importStatus, setImportStatus] = useState(null);
 
   const [filterGroup, setFilterGroup] = useState('');
@@ -26,6 +28,21 @@ function StudentsPage() {
   const [filterInclusive, setFilterInclusive] = useState('');
   const [sortCol, setSortCol] = useState('');
   const [sortDir, setSortDir] = useState('asc');
+
+  useEffect(() => {
+    if (showForm && modalRef.current && overlayRef.current) {
+      animateModalOpen(modalRef.current, overlayRef.current);
+    }
+  }, [showForm]);
+
+  useEffect(() => {
+    if (!showForm) return;
+    const handleKey = (e) => {
+      if (e.key === 'Escape') handleCancel();
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [showForm]);
 
   const handleSort = (col) => {
     if (sortCol === col) { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); }
@@ -68,7 +85,6 @@ function StudentsPage() {
         return 0;
       });
     } else {
-      // default: priority students first
       data = [...data].sort((a, b) => {
         const pa = a.inclusive_status && a.inclusive_status !== 'none' ? 0 : 1;
         const pb = b.inclusive_status && b.inclusive_status !== 'none' ? 0 : 1;
@@ -151,11 +167,19 @@ function StudentsPage() {
       <div className="page-header">
         <h1>{t('students_title')}</h1>
         <div className="page-header-actions">
-          {selectedIds.size > 0 && <button className="btn btn-danger bulk-delete-btn" onClick={handleBulkDelete}>&#128465; {t('students_delete_selected', { count: selectedIds.size })}</button>}
+          {selectedIds.size > 0 && (
+            <button className="btn btn-danger bulk-delete-btn" onClick={handleBulkDelete}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle', marginRight: '6px' }}>
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+              {t('students_delete_selected', { count: selectedIds.size })}
+            </button>
+          )}
           <button className="btn btn-outline" onClick={() => fileInputRef.current?.click()}>{t('students_import_csv')}</button>
           <input type="file" accept=".csv" ref={fileInputRef} style={{ display: 'none' }} onChange={handleCSVImport} />
-          <button className="btn btn-primary" onClick={() => { setShowForm(!showForm); setEditingId(null); setForm({ full_name: '', group: '', barcode: '', course: 1 }); }}>
-            {showForm ? t('btn_cancel') : t('students_add')}
+          <button className="btn btn-primary" onClick={() => { setEditingId(null); setForm({ full_name: '', group: '', barcode: '', course: 1, inclusive_status: 'none' }); setShowForm(true); }}>
+            + {t('students_add')}
           </button>
         </div>
       </div>
@@ -168,38 +192,59 @@ function StudentsPage() {
         </div>
       )}
 
-          {showForm && (
-        <div className="form-card">
-          <h3>{editingId ? t('students_edit') : t('students_add_new')}</h3>
-          <form onSubmit={handleSubmit}>
-            <div className="form-row">
-              <div className="form-group"><label>{t('students_full_name')}</label><input type="text" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} required /></div>
-              <div className="form-group"><label>{t('students_group')}</label><input type="text" value={form.group} onChange={(e) => setForm({ ...form, group: e.target.value })} placeholder="e.g. SE-2401" required /></div>
-              <div className="form-group"><label>{t('students_barcode')}</label><input type="text" value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })} placeholder="Barcode" required /></div>
-              <div className="form-group"><label>{t('students_course')}</label>
-                <select value={form.course} onChange={(e) => setForm({ ...form, course: parseInt(e.target.value) })} required>
-                  <option value={1}>1 {t('students_course_unit')}</option>
-                  <option value={2}>2 {t('students_course_unit')}</option>
-                  <option value={3}>3 {t('students_course_unit')}</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label>{t('students_inclusive_status')}</label>
-                <select value={form.inclusive_status} onChange={(e) => setForm({ ...form, inclusive_status: e.target.value })}>
-                  <option value="none">{t('inclusive_none')}</option>
-                  <option value="disability">{t('inclusive_disability')}</option>
-                  <option value="orphan">{t('inclusive_orphan')}</option>
-                  <option value="vision">{t('inclusive_vision')}</option>
-                  <option value="hearing">{t('inclusive_hearing')}</option>
-                  <option value="other">{t('inclusive_other')}</option>
-                </select>
-              </div>
+      {showForm && (
+        <div className="modal-overlay" ref={overlayRef} onClick={handleCancel}>
+          <div className="modal-card student-modal-card" ref={modalRef} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{editingId ? t('students_edit') : t('students_add_new')}</h3>
+              <button className="modal-close-btn" type="button" onClick={handleCancel} aria-label="Close">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
             </div>
-            <div className="form-actions">
-              <button className="btn btn-primary" type="submit">{editingId ? t('btn_update') : t('btn_create')}</button>
-              <button className="btn btn-outline" type="button" onClick={handleCancel}>{t('btn_cancel')}</button>
-            </div>
-          </form>
+            <form onSubmit={handleSubmit}>
+              <div className="student-form-grid">
+                <div className="form-group">
+                  <label>{t('students_full_name')}</label>
+                  <input type="text" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} required autoFocus />
+                </div>
+                <div className="form-group">
+                  <label>{t('students_group')}</label>
+                  <input type="text" value={form.group} onChange={(e) => setForm({ ...form, group: e.target.value })} placeholder="e.g. SE-2401" required />
+                </div>
+                <div className="form-group">
+                  <label>{t('students_barcode')}</label>
+                  <input type="text" value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })} placeholder="Barcode" required />
+                </div>
+                <div className="form-group">
+                  <label>{t('students_course')}</label>
+                  <select value={form.course} onChange={(e) => setForm({ ...form, course: parseInt(e.target.value) })} required>
+                    <option value={1}>1 {t('students_course_unit')}</option>
+                    <option value={2}>2 {t('students_course_unit')}</option>
+                    <option value={3}>3 {t('students_course_unit')}</option>
+                    <option value={4}>4 {t('students_course_unit')}</option>
+                  </select>
+                </div>
+                <div className="form-group student-form-full">
+                  <label>{t('students_inclusive_status')}</label>
+                  <select value={form.inclusive_status} onChange={(e) => setForm({ ...form, inclusive_status: e.target.value })}>
+                    <option value="none">{t('inclusive_none')}</option>
+                    <option value="disability">{t('inclusive_disability')}</option>
+                    <option value="orphan">{t('inclusive_orphan')}</option>
+                    <option value="vision">{t('inclusive_vision')}</option>
+                    <option value="hearing">{t('inclusive_hearing')}</option>
+                    <option value="other">{t('inclusive_other')}</option>
+                  </select>
+                </div>
+              </div>
+              <div className="modal-actions">
+                <button className="btn btn-outline" type="button" onClick={handleCancel}>{t('btn_cancel')}</button>
+                <button className="btn btn-primary" type="submit">{editingId ? t('btn_update') : t('btn_create')}</button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 

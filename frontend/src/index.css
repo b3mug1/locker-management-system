@@ -1089,6 +1089,104 @@ a:hover {
 }
 
 /* ===========================
+   Generic Form Modal & Popup Dialogs
+   =========================== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1.5rem;
+  animation: overlayFade 0.2s ease;
+}
+
+.modal-card {
+  background: var(--white);
+  border-radius: var(--radius-xl);
+  padding: 2rem;
+  max-width: 580px;
+  width: 100%;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  animation: modalBounce 0.3s var(--spring);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+[data-theme="dark"] .modal-card {
+  background: #1e1e21;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.65);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.875rem;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--gray-900);
+  letter-spacing: -0.01em;
+}
+
+.modal-close-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.25rem;
+  cursor: pointer;
+  color: var(--gray-400);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  transition: all var(--transition);
+}
+
+.modal-close-btn:hover {
+  background: var(--gray-100);
+  color: var(--gray-700);
+}
+
+[data-theme="dark"] .modal-close-btn:hover {
+  background: var(--gray-200);
+  color: var(--gray-300);
+}
+
+.student-form-grid,
+.locker-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.student-form-full,
+.locker-form-full {
+  grid-column: 1 / -1;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.75rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--card-border);
+}
+
+/* ===========================
    Forms
    =========================== */
 .form-group {
@@ -4268,31 +4366,32 @@ td .btn + .btn {
   background: var(--gray-50);
   border: 1px solid var(--card-border);
   border-radius: var(--radius-lg);
-  padding: 1rem 1.15rem;
+  padding: 1.1rem 1.25rem;
   display: flex;
   align-items: center;
-  gap: 0.85rem;
+  gap: 1rem;
   transition: all var(--transition);
 }
 
 .ai-tier-stat-box:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-sm);
+  border-color: var(--gray-300);
 }
 
 [data-theme="dark"] .ai-tier-stat-box {
   background: var(--gray-100);
+  border-color: var(--card-border);
 }
 
-.tier-box-1 { border-top: 3px solid var(--warning); }
-.tier-box-2 { border-top: 3px solid var(--primary); }
-.tier-box-3 { border-top: 3px solid var(--accent); }
-.tier-box-4 { border-top: 3px solid var(--gray-400); }
+[data-theme="dark"] .ai-tier-stat-box:hover {
+  border-color: var(--gray-400);
+}
 
 .tier-box-badge {
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-full);
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4304,7 +4403,7 @@ td .btn + .btn {
 .tier-box-1 .tier-box-badge { background: var(--warning-light); color: #b45309; }
 .tier-box-2 .tier-box-badge { background: var(--primary-light); color: var(--primary); }
 .tier-box-3 .tier-box-badge { background: var(--accent-light); color: var(--accent); }
-.tier-box-4 .tier-box-badge { background: var(--gray-100); color: var(--gray-500); }
+.tier-box-4 .tier-box-badge { background: var(--gray-200); color: var(--gray-600); }
 
 [data-theme="dark"] .tier-box-1 .tier-box-badge { color: var(--warning); }
 [data-theme="dark"] .tier-box-2 .tier-box-badge { color: var(--primary); }
@@ -4352,19 +4451,19 @@ td .btn + .btn {
 .ai-sim-insights-callout {
   display: flex;
   align-items: flex-start;
-  gap: 0.75rem;
+  gap: 0.85rem;
   background: var(--primary-light);
-  border: 1px solid var(--card-border);
-  border-left: 3px solid var(--primary);
+  border: 1px solid rgba(59, 130, 246, 0.2);
   border-radius: var(--radius-lg);
-  padding: 0.85rem 1.15rem;
+  padding: 1rem 1.25rem;
   color: var(--gray-800);
-  font-size: 0.85rem;
-  line-height: 1.5;
+  font-size: 0.875rem;
+  line-height: 1.55;
 }
 
 [data-theme="dark"] .ai-sim-insights-callout {
   background: var(--primary-light);
+  border-color: rgba(59, 130, 246, 0.3);
   color: var(--gray-200);
 }
 
