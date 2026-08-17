@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { getDashboardAnalytics } from '../api/assignments';
 import { useLanguage } from '../context/LanguageContext';
+import { animateStagger } from '../utils/animations';
 
 function AnalyticsPage() {
   const { t } = useLanguage();
@@ -24,6 +25,15 @@ function AnalyticsPage() {
     };
     load();
   }, [period, t]);
+
+  useEffect(() => {
+    if (data) {
+      animateStagger('.analytics-summary-card, .analytics-card, .analytics-bar-col', {
+        delay: 35,
+        duration: 500,
+      });
+    }
+  }, [data]);
 
   const maxActivity = Math.max(1, ...(data?.assignments_per_day || []).map(x => x.count), ...(data?.releases_per_day || []).map(x => x.count));
   const periodLabels = { week: t('analytics_week'), month: t('analytics_month'), quarter: t('analytics_quarter') };

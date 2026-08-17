@@ -1,7 +1,7 @@
 """
 Gemini AI Service for Smart Locker Allocation.
 
-Uses Google Gemini to:
+Uses Google Gemini (google-genai SDK) to:
 1. Generate intelligent locker allocation plans with natural-language reasoning
 2. Answer admin questions about the current state of the system (conversational chat)
 """
@@ -15,7 +15,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-def _get_client(model_name: str | None = None):
+def _get_client():
     """Lazily initialise the Gemini client so the app starts even without a key."""
     from app.core.config import settings
     if not settings.GEMINI_API_KEY:
@@ -23,10 +23,13 @@ def _get_client(model_name: str | None = None):
             "GEMINI_API_KEY is not configured. "
             "Add it to .env and restart the server."
         )
-    import google.generativeai as genai
-    genai.configure(api_key=settings.GEMINI_API_KEY)
-    target_model = model_name or settings.GEMINI_MODEL or "gemini-3.7-flash"
-    return genai.GenerativeModel(target_model)
+    from google import genai
+    return genai.Client(api_key=settings.GEMINI_API_KEY)
+
+
+def _get_model_name() -> str:
+    from app.core.config import settings
+    return settings.GEMINI_MODEL or "gemini-3.5-flash-lite"
 
 
 def _clean_and_parse_json(raw: str) -> dict[str, Any] | None:
@@ -39,11 +42,9 @@ def _clean_and_parse_json(raw: str) -> dict[str, Any] | None:
     except Exception:
         # Attempt to repair truncated allocations array
         if '"allocations"' in text:
-            # Find the last completely closed object inside allocations
             last_bracket = text.rfind("}")
             if last_bracket != -1:
                 sub = text[:last_bracket + 1]
-                # Try closing the array and root object
                 for suffix in ["]}", "]}", "}", "]"]:
                     try:
                         return json.loads(sub + suffix)
@@ -186,34 +187,39 @@ Please evaluate the allocation distribution and return your strategic plan in JS
     gemini_meta = None
     candidate_models = [
         settings.GEMINI_MODEL,
-        "gemini-3.7-flash",
-        "gemini-3.6-flash",
-        "gemini-3.5-flash",
+        "gemini-3.5-flash-lite",
         "gemini-3.1-flash-lite",
-        "gemini-3-flash-preview",
+        "gemini-3.5-flash",
+        "gemini-3.6-flash",
     ]
     seen = set()
     models_to_try = [m for m in candidate_models if m and not (m in seen or seen.add(m))]
 
     strategy_prompt = _get_strategy_prompt(lang)
 
-    for model_name in models_to_try:
-        try:
-            model = _get_client(model_name)
-            response = model.generate_content(
-                [strategy_prompt, user_strategy_prompt],
-                generation_config={
-                    "temperature": 0.3,
-                    "max_output_tokens": 4096,
-                    "response_mime_type": "application/json",
-                },
-            )
-            gemini_meta = _clean_and_parse_json(response.text)
-            if gemini_meta:
-                break
-        except Exception as exc:
-            logger.warning("Gemini strategic guidance attempt with %s failed: %s", model_name, exc)
-            continue
+    try:
+        client = _get_client()
+        for model_name in models_to_try:
+            try:
+                from google.genai import types
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=[strategy_prompt + "\n\n" + user_strategy_prompt],
+                    config=types.GenerateContentConfig(
+                        temperature=0.3,
+                        max_output_tokens=4096,
+                        response_mime_type="application/json",
+                    ),
+                )
+                gemini_meta = _clean_and_parse_json(response.text)
+                if gemini_meta:
+                    logger.info("Gemini strategic guidance successful with model: %s", model_name)
+                    break
+            except Exception as exc:
+                logger.warning("Gemini strategic guidance attempt with %s failed: %s", model_name, exc)
+                continue
+    except Exception as exc:
+        logger.warning("Gemini client initialization failed: %s", exc)
 
     if lang == "en":
         default_summary = (
@@ -238,7 +244,6 @@ Please evaluate the allocation distribution and return your strategic plan in JS
     insights = (gemini_meta.get("insights") if gemini_meta else None) or default_insights
 
     # 4. Multi-tier locker matching algorithm
-    # Create mutable remaining capacity tracker per locker
     locker_pool = {
         l["id"]: {
             "data": l,
@@ -252,7 +257,6 @@ Please evaluate the allocation distribution and return your strategic plan in JS
     allocations = []
     t1_done = t2_done = t3_done = t4_done = 0
 
-    # Group trackers for clustering same group into adjacent/same lockers
     group_floor_map = {}
 
     for s in sorted_students:
@@ -260,26 +264,20 @@ Please evaluate the allocation distribution and return your strategic plan in JS
         target_floor = 1 if tier == 1 else (s.get("course") or 1)
         group = s.get("group", "")
 
-        # If group already has an established floor in this run, try to keep it
         if group and group in group_floor_map and tier != 1:
             target_floor = group_floor_map[group]
 
-        # Find best locker:
-        # Priority:
-        # 1. Matching exact target_floor with remaining capacity
-        # 2. Closest floor with remaining capacity
         best_lid = None
         best_diff = 9999
 
         candidate_lockers = [lid for lid, lobj in locker_pool.items() if lobj["remaining"] > 0]
         if not candidate_lockers:
-            break  # No more available locker spots
+            break
 
         for lid in candidate_lockers:
             lobj = locker_pool[lid]
             fl_diff = abs(lobj["floor"] - target_floor)
 
-            # For Tier 1, strictly require Floor 1 if any Floor 1 is available
             if tier == 1 and lobj["floor"] != 1 and any(locker_pool[k]["floor"] == 1 and locker_pool[k]["remaining"] > 0 for k in candidate_lockers):
                 continue
 
@@ -287,13 +285,11 @@ Please evaluate the allocation distribution and return your strategic plan in JS
                 best_diff = fl_diff
                 best_lid = lid
                 if fl_diff == 0:
-                    break  # Perfect floor match found
+                    break
 
         if best_lid is None:
-            # Fallback to any first candidate
             best_lid = candidate_lockers[0]
 
-        # Assign
         assigned_locker = locker_pool[best_lid]["data"]
         locker_pool[best_lid]["remaining"] -= 1
 
@@ -352,7 +348,10 @@ async def gemini_chat(
     """
     Conversational Q&A with Gemini about the system state.
     """
-    model = _get_client()
+    from google.genai import types
+
+    client = _get_client()
+    model_name = _get_model_name()
 
     context_block = f"""
 SYSTEM SNAPSHOT:
@@ -361,19 +360,34 @@ SYSTEM SNAPSHOT:
 - Total lockers: {context.get('total_lockers', '?')}
 - Available spots: {context.get('available_spots', '?')}
 - Tier 1 (Inclusive): {context.get('tier_1_count', '?')}
-- Tier 2 (Active ≥70): {context.get('tier_2_count', '?')}
-- Tier 3 (GPA ≥3.4): {context.get('tier_3_count', '?')}
+- Tier 2 (Active >=70): {context.get('tier_2_count', '?')}
+- Tier 3 (GPA >=3.4): {context.get('tier_3_count', '?')}
 - Tier 4 (General): {context.get('tier_4_count', '?')}
 - Floors available: {context.get('floors', '?')}
 """
 
-    chat = model.start_chat(history=history)
+    # Build conversation contents for new SDK
+    contents = []
+    for h in history:
+        role = h.get("role", "user")
+        parts = h.get("parts", h.get("content", ""))
+        if isinstance(parts, list):
+            text = " ".join(p if isinstance(p, str) else p.get("text", "") for p in parts)
+        else:
+            text = str(parts)
+        contents.append(types.Content(role=role, parts=[types.Part(text=text)]))
+
     full_message = f"{CHAT_SYSTEM_PROMPT}\n\n{context_block}\n\nAdmin: {message}"
+    contents.append(types.Content(role="user", parts=[types.Part(text=full_message)]))
 
     try:
-        response = chat.send_message(
-            full_message,
-            generation_config={"temperature": 0.7, "max_output_tokens": 1024},
+        response = client.models.generate_content(
+            model=model_name,
+            contents=contents,
+            config=types.GenerateContentConfig(
+                temperature=0.7,
+                max_output_tokens=1024,
+            ),
         )
         return response.text
     except Exception as exc:

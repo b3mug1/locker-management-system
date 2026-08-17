@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { getMyTechnicianTasks, startRepair, resolveIncident } from '../api/incidents';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useLanguage } from '../context/LanguageContext';
+import { animateStagger } from '../utils/animations';
 
 export default function TechnicianDashboard() {
   const { t } = useLanguage();
@@ -29,6 +30,12 @@ export default function TechnicianDashboard() {
   useEffect(() => {
     fetchTasks();
   }, [fetchTasks]);
+
+  useEffect(() => {
+    if (tasks.length > 0) {
+      animateStagger('.task-card, .td-stat-card', { delay: 40, duration: 450 });
+    }
+  }, [tasks, filterStatus]);
 
   useWebSocket({ incident_change: fetchTasks, locker_change: fetchTasks });
 
@@ -248,7 +255,7 @@ export default function TechnicianDashboard() {
           <div className="photo-zoom-modal" onClick={e => e.stopPropagation()}>
             <img src={selectedPhoto} alt="Zoomed defect" className="photo-zoom-img" />
             <button className="btn btn-secondary photo-zoom-close" onClick={() => setSelectedPhoto(null)}>
-              ✕ {t('btn_cancel')}
+              {t('btn_cancel')}
             </button>
           </div>
         </div>

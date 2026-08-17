@@ -3,6 +3,7 @@ import { getUsers, createUser, deleteUser } from '../api/users';
 import { getStudents } from '../api/students';
 import { useLanguage } from '../context/LanguageContext';
 import ConfirmModal from '../components/ConfirmModal';
+import { animateStagger } from '../utils/animations';
 
 function UsersPage() {
   const { t } = useLanguage();
@@ -47,6 +48,12 @@ function UsersPage() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const paginated = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   useEffect(() => { setCurrentPage(1); }, [search, pageSize]);
+
+  useEffect(() => {
+    if (paginated.length > 0) {
+      animateStagger('.table tbody tr', { delay: 25, duration: 400, translateY: [12, 0] });
+    }
+  }, [currentPage, pageSize, search]);
 
   const handleCreate = async (e) => {
     e.preventDefault(); setError(''); setSuccess(''); setCreating(true);

@@ -4,6 +4,7 @@ import { getLockers } from '../api/lockers';
 import { useLanguage } from '../context/LanguageContext';
 import { useWebSocket } from '../hooks/useWebSocket';
 import ConfirmModal from '../components/ConfirmModal';
+import { animateStagger } from '../utils/animations';
 
 function IncidentsPage() {
   const { t, lang } = useLanguage();
@@ -20,6 +21,12 @@ function IncidentsPage() {
   const [assignModal, setAssignModal] = useState({ open: false, incident: null, technicianId: '' });
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    if (incidents.length > 0) {
+      animateStagger('.table tbody tr, .card', { delay: 30, duration: 400 });
+    }
+  }, [incidents, filterStatus, filterTech]);
 
   const [form, setForm] = useState({
     locker_id: '',
@@ -475,7 +482,7 @@ function IncidentsPage() {
           <div className="photo-zoom-modal" onClick={e => e.stopPropagation()}>
             <img src={selectedPhoto} alt="Zoomed defect" className="photo-zoom-img" />
             <button className="btn btn-secondary photo-zoom-close" onClick={() => setSelectedPhoto(null)}>
-              ✕ {t('btn_cancel')}
+              {t('btn_cancel')}
             </button>
           </div>
         </div>

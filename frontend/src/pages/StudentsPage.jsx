@@ -3,6 +3,7 @@ import { getStudents, createStudent, updateStudent, deleteStudent, importStudent
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useLanguage } from '../context/LanguageContext';
 import ConfirmModal from '../components/ConfirmModal';
+import { animateStagger } from '../utils/animations';
 
 function StudentsPage() {
   const { t } = useLanguage();
@@ -80,6 +81,12 @@ function StudentsPage() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const paginated = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   useEffect(() => { setCurrentPage(1); }, [search, pageSize, filterGroup, filterCourse]);
+
+  useEffect(() => {
+    if (paginated.length > 0) {
+      animateStagger('.table tbody tr', { delay: 25, duration: 400, translateY: [12, 0] });
+    }
+  }, [currentPage, pageSize, filterGroup, filterCourse, filterInclusive, search]);
 
   const toggleSelect = (id) => { setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; }); };
   const toggleSelectAll = () => {

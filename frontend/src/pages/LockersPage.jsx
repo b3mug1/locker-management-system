@@ -3,6 +3,7 @@ import { getLockers, createLocker, updateLocker, deleteLocker, importLockersCSV 
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useLanguage } from '../context/LanguageContext';
 import ConfirmModal from '../components/ConfirmModal';
+import { animateStagger } from '../utils/animations';
 
 function LockersPage() {
   const { t } = useLanguage();
@@ -55,6 +56,12 @@ function LockersPage() {
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const paginated = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  useEffect(() => {
+    if (paginated.length > 0) {
+      animateStagger('.table tbody tr', { delay: 30, duration: 400, translateY: [12, 0] });
+    }
+  }, [currentPage, pageSize, filterFloor, filterSize, filterStatus, filterAvailability, searchQuery]);
   const floors = useMemo(() => [...new Set(lockers.map(l => l.floor))].sort((a, b) => a - b), [lockers]);
   useEffect(() => { setCurrentPage(1); }, [searchQuery, pageSize, filterFloor, filterSize, filterStatus, filterAvailability]);
 

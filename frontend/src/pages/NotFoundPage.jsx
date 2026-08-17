@@ -55,11 +55,11 @@ function NotFoundPage() {
           </Link>
           <div className="lp-nav-right">
             <button
-              className="lp-icon-btn"
+              className="lp-icon-btn lang-badge-btn"
               onClick={() => switchLang(lang === 'en' ? 'ru' : 'en')}
               title={lang === 'en' ? 'Русский' : 'English'}
             >
-              {lang === 'en' ? '🇷🇺' : '🇬🇧'}
+              <span className="lang-text-code">{lang === 'en' ? 'RU' : 'EN'}</span>
             </button>
             <button
               className="lp-icon-btn"

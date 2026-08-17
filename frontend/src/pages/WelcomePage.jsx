@@ -1,18 +1,64 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { Sun, Moon, Lock, Users, BarChart3, ShieldCheck, Key, Building2, Bell, FileSpreadsheet, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { createTimeline } from 'animejs';
+import { animateStagger, animateCounter } from '../utils/animations';
 
 function WelcomePage() {
   const { t, lang, switchLang } = useLanguage();
   const { user } = useAuth();
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
+  const countRef1 = useRef(null);
+  const countRef2 = useRef(null);
+  const countRef3 = useRef(null);
+  const countRef4 = useRef(null);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
   }, [theme]);
+
+  useEffect(() => {
+    try {
+      // Anime.js Timeline for Hero
+      const tl = createTimeline({ ease: 'outCubic' });
+      tl.add('.lp-hero-pill', {
+        opacity: [0, 1],
+        translateY: [-15, 0],
+        duration: 500,
+      })
+      .add('.lp-hero-h1', {
+        opacity: [0, 1],
+        translateY: [25, 0],
+        duration: 700,
+      }, '-=300')
+      .add('.lp-hero-sub', {
+        opacity: [0, 1],
+        translateY: [20, 0],
+        duration: 600,
+      }, '-=400')
+      .add('.lp-hero-btns, .lp-mockup', {
+        opacity: [0, 1],
+        translateY: [30, 0],
+        scale: [0.95, 1],
+        duration: 750,
+        ease: 'outBack',
+      }, '-=350');
+    } catch (err) {
+      console.debug('Hero timeline fallback', err);
+    }
+
+    // Number counters
+    if (countRef1.current) animateCounter(countRef1.current, 1500, { duration: 1200, formatter: v => v + '+' });
+    if (countRef2.current) animateCounter(countRef2.current, 7000, { duration: 1400, formatter: v => v + '+' });
+    if (countRef3.current) animateCounter(countRef3.current, 3, { duration: 800, formatter: v => String(v) });
+    if (countRef4.current) animateCounter(countRef4.current, 99.9, { duration: 1000, formatter: v => v.toFixed(1) + '%' });
+
+    // Feature cards stagger animation
+    animateStagger('.lp-feat-card', { delay: 70, duration: 600 });
+  }, []);
 
   const features = [
     { icon: <Lock size={22} strokeWidth={1.75} />,         titleKey: 'welcome_feat1_title', descKey: 'welcome_feat1_desc' },
@@ -45,11 +91,11 @@ function WelcomePage() {
           </div>
           <div className="lp-nav-right">
             <button
-              className="lp-icon-btn"
+              className="lp-icon-btn lang-badge-btn"
               onClick={() => switchLang(lang === 'en' ? 'ru' : 'en')}
               title={lang === 'en' ? 'Русский' : 'English'}
             >
-              {lang === 'en' ? '🇷🇺' : '🇬🇧'}
+              <span className="lang-text-code">{lang === 'en' ? 'RU' : 'EN'}</span>
             </button>
             <button
               className="lp-icon-btn"
@@ -89,12 +135,12 @@ function WelcomePage() {
               <span /><span /><span />
             </div>
             <div className="lp-mockup-body">
-              <div className="lp-mock-stat"><span className="lp-mock-num">1500+</span><span>{t('welcome_stat_lockers')}</span></div>
-              <div className="lp-mock-stat"><span className="lp-mock-num">7000+</span><span>{t('welcome_stat_students')}</span></div>
-              <div className="lp-mock-stat"><span className="lp-mock-num">3</span><span>{t('welcome_stat_floors')}</span></div>
-              <div className="lp-mock-stat"><span className="lp-mock-num lp-mock-green">99.9%</span><span>{t('welcome_stat_uptime')}</span></div>
+              <div className="lp-mock-stat"><span className="lp-mock-num" ref={countRef1}>0</span><span>{t('welcome_stat_lockers')}</span></div>
+              <div className="lp-mock-stat"><span className="lp-mock-num" ref={countRef2}>0</span><span>{t('welcome_stat_students')}</span></div>
+              <div className="lp-mock-stat"><span className="lp-mock-num" ref={countRef3}>0</span><span>{t('welcome_stat_floors')}</span></div>
+              <div className="lp-mock-stat"><span className="lp-mock-num lp-mock-green" ref={countRef4}>0%</span><span>{t('welcome_stat_uptime')}</span></div>
             </div>
-            <div className="lp-mock-lockers">
+            <div className="lp-mock-lockers" onMouseEnter={() => animateStagger('.lp-mock-cell', { scale: [0.85, 1], delay: 30, duration: 400 })}>
               {[...Array(12)].map((_, i) => (
                 <div key={i} className={`lp-mock-cell ${[1,4,7].includes(i) ? 'lp-mock-occupied' : i === 9 ? 'lp-mock-maintenance' : ''}`}>
                   <Lock size={14} strokeWidth={2} />

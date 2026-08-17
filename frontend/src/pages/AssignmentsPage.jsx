@@ -5,6 +5,7 @@ import { getLockers } from '../api/lockers';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useLanguage } from '../context/LanguageContext';
 import ConfirmModal from '../components/ConfirmModal';
+import { animateStagger } from '../utils/animations';
 
 function AssignmentsPage() {
   const { t } = useLanguage();
@@ -28,6 +29,15 @@ function AssignmentsPage() {
   // Table sorting and pagination
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+
+  useEffect(() => {
+    if (geminiPlan) {
+      animateStagger('.ai-simulation-card, .ai-tier-stat-box, .ai-sim-table-wrap tbody tr', {
+        delay: 35,
+        duration: 450,
+      });
+    }
+  }, [geminiPlan]);
   const [sortCol, setSortCol] = useState('');
   const [sortDir, setSortDir] = useState('asc');
   const [currentPage, setCurrentPage] = useState(1);

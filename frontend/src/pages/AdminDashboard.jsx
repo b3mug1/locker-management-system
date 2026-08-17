@@ -1,7 +1,9 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { getDashboardStats } from '../api/assignments';
 import { useLanguage } from '../context/LanguageContext';
+import { animate } from 'animejs';
+import { animateStagger } from '../utils/animations';
 
 function AdminDashboard() {
   const [stats, setStats] = useState(null);
@@ -21,6 +23,26 @@ function AdminDashboard() {
     };
     fetchStats();
   }, []);
+
+  useEffect(() => {
+    if (!stats) return;
+    // Animate stat cards and rows
+    animateStagger('.dash-hero-stat, .dash-occupancy-card, .dash-stat-card, .dash-quick-btn, .dash-activity-item', {
+      delay: 45,
+      duration: 500,
+    });
+
+    // Animate ring progress stroke
+    try {
+      animate('.dash-ring-fill', {
+        strokeDashoffset: [314, 0],
+        duration: 1000,
+        ease: 'outCubic',
+      });
+    } catch (err) {
+      console.debug('Ring animation fallback', err);
+    }
+  }, [stats]);
 
   const formatDate = (d) => {
     if (!d) return '\u2014';

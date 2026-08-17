@@ -3,6 +3,7 @@ import { getMyDashboard } from '../api/assignments';
 import { createIncident, getIncidents } from '../api/incidents';
 import { useLanguage } from '../context/LanguageContext';
 import { useWebSocket } from '../hooks/useWebSocket';
+import { animateStagger } from '../utils/animations';
 
 function UserDashboard() {
   const { t, lang } = useLanguage();
@@ -44,6 +45,15 @@ function UserDashboard() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    if (data) {
+      animateStagger('.ud-profile-card, .ud-locker-card, .ud-empty-card, .ud-incidents-card, .ud-history-card', {
+        delay: 50,
+        duration: 500,
+      });
+    }
+  }, [data]);
 
   useWebSocket({
     assignment_change: fetchData,
@@ -404,7 +414,7 @@ function UserDashboard() {
           <div className="photo-zoom-modal" onClick={e => e.stopPropagation()}>
             <img src={selectedPhoto} alt="Zoomed defect" className="photo-zoom-img" />
             <button className="btn btn-secondary photo-zoom-close" onClick={() => setSelectedPhoto(null)}>
-              ✕ {t('btn_cancel')}
+              {t('btn_cancel')}
             </button>
           </div>
         </div>

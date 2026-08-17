@@ -1,12 +1,16 @@
 import React, { useEffect, useRef } from 'react';
+import { animateModalOpen } from '../utils/animations';
 
 function ConfirmModal({ open, title, message, confirmText = 'Confirm', cancelText = 'Cancel', variant = 'danger', onConfirm, onCancel }) {
   const confirmRef = useRef(null);
+  const modalRef = useRef(null);
+  const overlayRef = useRef(null);
 
   useEffect(() => {
     if (open) {
       confirmRef.current?.focus();
       document.body.style.overflow = 'hidden';
+      animateModalOpen(modalRef.current, overlayRef.current);
     } else {
       document.body.style.overflow = '';
     }
@@ -25,8 +29,8 @@ function ConfirmModal({ open, title, message, confirmText = 'Confirm', cancelTex
   if (!open) return null;
 
   return (
-    <div className="confirm-overlay" onClick={onCancel}>
-      <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>
+    <div className="confirm-overlay" ref={overlayRef} onClick={onCancel}>
+      <div className="confirm-modal" ref={modalRef} onClick={(e) => e.stopPropagation()}>
         <div className={`confirm-icon confirm-icon-${variant}`}>
           {variant === 'danger' ? (
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
