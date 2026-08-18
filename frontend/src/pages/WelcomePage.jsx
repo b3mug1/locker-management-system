@@ -190,7 +190,11 @@ function WelcomePage() {
       <section className="lp-checks">
         <div className="lp-checks-inner">
           <div className="lp-checks-text">
-            <div className="lp-section-label">{t('welcome_hero_badge')}</div>
+            <div className="lp-checks-logo-wrap">
+              <img src="/aitu-logo.png" alt="Astana IT University" className="lp-checks-logo logo-light" />
+              <img src="/aitu-logo-white.png" alt="Astana IT University" className="lp-checks-logo logo-dark" />
+            </div>
+            <div className="lp-section-label" style={{ textAlign: 'left' }}>{t('welcome_hero_badge')}</div>
             <h2 className="lp-section-h2" style={{ textAlign:'left' }}>{t('welcome_cta_title')}</h2>
             <p className="lp-checks-sub">{t('welcome_cta_subtitle')}</p>
             {!user && (

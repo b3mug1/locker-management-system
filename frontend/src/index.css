@@ -3723,6 +3723,12 @@ td .btn + .btn {
 /* -- Checklist highlight -------------------------- */
 .lp-checks { padding:6rem 1.5rem; max-width:1140px; margin:0 auto; width:100%; }
 .lp-checks-inner { display:grid; grid-template-columns:1fr 1fr; gap:4rem; align-items:center; }
+.lp-checks-logo-wrap { margin-bottom:1.25rem; }
+.lp-checks-logo { height:36px; width:auto; object-fit:contain; display:block; }
+.lp-checks-logo.logo-dark { display:none; }
+[data-theme="dark"] .lp-checks-logo.logo-light { display:none; }
+[data-theme="dark"] .lp-checks-logo.logo-dark { display:block; }
+.lp-checks .lp-section-label { text-align:left; }
 .lp-checks-sub { color:var(--gray-500); font-size:1rem; line-height:1.75; margin-top:.75rem; }
 .lp-checklist { list-style:none; display:flex; flex-direction:column; gap:.875rem; }
 .lp-checklist li { display:flex; align-items:center; gap:.75rem; font-size:.9375rem; color:var(--gray-700); font-weight:500; }
@@ -4285,6 +4291,208 @@ td .btn + .btn {
    AI SMART ALLOCATION — matches system design
    ============================================================ */
 
+/* AI Neural Processing Hub Animation */
+.ai-calc-loading-card {
+  background: var(--white);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-xl);
+  padding: 1.75rem;
+  margin-bottom: 1.75rem;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  animation: fadeIn 0.3s ease-out;
+  position: relative;
+  overflow: hidden;
+}
+
+[data-theme="dark"] .ai-calc-loading-card {
+  background: var(--gray-100);
+  border-color: var(--card-border);
+}
+
+.ai-calc-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.ai-calc-core-status {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.ai-calc-waves-wrapper {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 28px;
+  padding: 2px;
+}
+
+.ai-wave-bar {
+  width: 4px;
+  height: 10px;
+  background: linear-gradient(180deg, #3b82f6 0%, #8b5cf6 100%);
+  border-radius: 4px;
+}
+
+.ai-calc-title-group h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--gray-900);
+  margin: 0 0 0.2rem;
+}
+
+[data-theme="dark"] .ai-calc-title-group h3 {
+  color: #f8fafc;
+}
+
+.ai-calc-substatus {
+  font-size: 0.8125rem;
+  color: var(--gray-500);
+  margin: 0;
+  font-family: monospace;
+}
+
+[data-theme="dark"] .ai-calc-substatus {
+  color: #94a3b8;
+}
+
+.ai-calc-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--primary-light);
+  color: var(--primary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.3rem 0.8rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--card-border);
+  letter-spacing: 0.03em;
+}
+
+[data-theme="dark"] .ai-calc-badge {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.ai-calc-track {
+  width: 100%;
+  height: 6px;
+  background: var(--gray-100);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  position: relative;
+}
+
+[data-theme="dark"] .ai-calc-track {
+  background: var(--gray-200);
+}
+
+.ai-calc-glow-bar {
+  height: 100%;
+  width: 15%;
+  background: linear-gradient(90deg, #2563eb, #7c3aed, #ec4899);
+  border-radius: var(--radius-full);
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.6);
+}
+
+.ai-calc-steps-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+@media (max-width: 900px) {
+  .ai-calc-steps-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 550px) {
+  .ai-calc-steps-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ai-calc-step-card {
+  background: var(--gray-50);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  padding: 0.75rem 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  transition: all var(--transition);
+}
+
+[data-theme="dark"] .ai-calc-step-card {
+  background: var(--gray-200);
+  border-color: var(--card-border);
+}
+
+.ai-step-indicator {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--gray-200);
+  color: var(--gray-600);
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+[data-theme="dark"] .ai-step-indicator {
+  background: var(--gray-300);
+  color: var(--gray-400);
+}
+
+.ai-calc-step-card.active {
+  background: var(--primary-subtle);
+  border-color: var(--primary-light);
+  transform: translateY(-1px);
+}
+
+[data-theme="dark"] .ai-calc-step-card.active {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.35);
+}
+
+.ai-calc-step-card.active .ai-step-indicator {
+  background: var(--primary);
+  color: #ffffff;
+  box-shadow: 0 0 8px rgba(37, 99, 235, 0.5);
+}
+
+.ai-step-text {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--gray-700);
+  line-height: 1.35;
+}
+
+[data-theme="dark"] .ai-step-text {
+  color: #cbd5e1;
+}
+
+.ai-calc-step-card.active .ai-step-text {
+  color: var(--primary);
+}
+
+[data-theme="dark"] .ai-calc-step-card.active .ai-step-text {
+  color: #93c5fd;
+}
+
 /* AI Simulation Results Card — Premium Cohesive System Design */
 .ai-simulation-card {
   background: var(--white);
@@ -4297,6 +4505,13 @@ td .btn + .btn {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+[data-theme="dark"] .ai-simulation-card {
+  background: var(--gray-100);
+  border-color: var(--card-border);
 }
 
 .ai-sim-header {
@@ -4329,6 +4544,10 @@ td .btn + .btn {
   letter-spacing: -0.01em;
 }
 
+[data-theme="dark"] .ai-sim-heading-row h2 {
+  color: #f8fafc;
+}
+
 .badge-ai-model {
   display: inline-flex;
   align-items: center;
@@ -4349,17 +4568,35 @@ td .btn + .btn {
   margin: 0;
 }
 
+[data-theme="dark"] .ai-sim-summary {
+  color: #cbd5e1;
+}
+
 .ai-sim-actions {
   display: flex;
   gap: 0.5rem;
   align-items: center;
 }
 
-/* 4 Tier Stat Cards Grid */
+/* 4 Tier Stat Cards Grid — Responsive & Non-Overflowing */
 .ai-tier-stat-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 1024px) {
+  .ai-tier-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .ai-tier-stat-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .ai-tier-stat-box {
@@ -4369,18 +4606,20 @@ td .btn + .btn {
   padding: 1.1rem 1.25rem;
   display: flex;
   align-items: center;
-  gap: 1rem;
-  transition: all var(--transition);
+  gap: 0.85rem;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color var(--transition), box-shadow var(--transition), background-color var(--transition);
 }
 
 .ai-tier-stat-box:hover {
-  transform: translateY(-2px);
   box-shadow: var(--shadow-sm);
   border-color: var(--gray-300);
 }
 
 [data-theme="dark"] .ai-tier-stat-box {
-  background: var(--gray-100);
+  background: var(--gray-200);
   border-color: var(--card-border);
 }
 
@@ -4408,13 +4647,14 @@ td .btn + .btn {
 [data-theme="dark"] .tier-box-1 .tier-box-badge { color: var(--warning); }
 [data-theme="dark"] .tier-box-2 .tier-box-badge { color: var(--primary); }
 [data-theme="dark"] .tier-box-3 .tier-box-badge { color: var(--accent); }
-[data-theme="dark"] .tier-box-4 .tier-box-badge { color: var(--gray-300); }
+[data-theme="dark"] .tier-box-4 .tier-box-badge { color: var(--gray-300); background: var(--gray-300); }
 
 .tier-box-content {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
   min-width: 0;
+  flex: 1;
 }
 
 .tier-box-num {
@@ -4423,6 +4663,10 @@ td .btn + .btn {
   color: var(--gray-900);
   line-height: 1;
   letter-spacing: -0.02em;
+}
+
+[data-theme="dark"] .tier-box-num {
+  color: #ffffff;
 }
 
 .tier-box-label {
@@ -4436,6 +4680,10 @@ td .btn + .btn {
   text-overflow: ellipsis;
 }
 
+[data-theme="dark"] .tier-box-label {
+  color: #94a3b8;
+}
+
 .ai-sim-meta-row {
   display: flex;
   align-items: center;
@@ -4447,7 +4695,11 @@ td .btn + .btn {
   color: var(--gray-500);
 }
 
-/* Strategic Insights Callout */
+[data-theme="dark"] .ai-sim-meta-text {
+  color: #94a3b8;
+}
+
+/* Strategic Insights Callout — Crisp Contrast in Dark Theme */
 .ai-sim-insights-callout {
   display: flex;
   align-items: flex-start;
@@ -4462,9 +4714,9 @@ td .btn + .btn {
 }
 
 [data-theme="dark"] .ai-sim-insights-callout {
-  background: var(--primary-light);
+  background: rgba(59, 130, 246, 0.12);
   border-color: rgba(59, 130, 246, 0.3);
-  color: var(--gray-200);
+  color: #f1f5f9;
 }
 
 .insights-tag {
@@ -4478,9 +4730,18 @@ td .btn + .btn {
   padding-top: 0.1rem;
 }
 
+[data-theme="dark"] .insights-tag {
+  color: #60a5fa;
+}
+
 .ai-sim-insights-callout p {
   margin: 0;
   font-weight: 500;
+  color: inherit;
+}
+
+[data-theme="dark"] .ai-sim-insights-callout p {
+  color: #e2e8f0;
 }
 
 /* Simulation Table styling */

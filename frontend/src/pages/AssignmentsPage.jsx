@@ -5,7 +5,8 @@ import { getLockers } from '../api/lockers';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useLanguage } from '../context/LanguageContext';
 import ConfirmModal from '../components/ConfirmModal';
-import { animateStagger } from '../utils/animations';
+import { animateStagger, animateCounter } from '../utils/animations';
+import { animate } from 'animejs';
 
 function AssignmentsPage() {
   const { t, lang } = useLanguage();
@@ -25,19 +26,74 @@ function AssignmentsPage() {
   const [geminiPlan, setGeminiPlan] = useState(null);
   const [geminiLoading, setGeminiLoading] = useState(false);
   const [geminiInstruction, setGeminiInstruction] = useState('');
+  const [calcStep, setCalcStep] = useState(1);
 
-  // Table sorting and pagination
-  const [search, setSearch] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
+  // Animation refs
+  const calcBarRef = useRef(null);
+  const tier1Ref = useRef(null);
+  const tier2Ref = useRef(null);
+  const tier3Ref = useRef(null);
+  const tier4Ref = useRef(null);
 
+  // Animate dynamic wave equalizer and progress glow bar with animejs
+  useEffect(() => {
+    let barAnim = null;
+    let waveAnim = null;
+    let stepInterval = null;
+
+    if (geminiLoading) {
+      setCalcStep(1);
+      stepInterval = setInterval(() => {
+        setCalcStep(s => (s < 4 ? s + 1 : 1));
+      }, 600);
+
+      try {
+        if (calcBarRef.current) {
+          barAnim = animate(calcBarRef.current, {
+            width: ['10%', '94%'],
+            duration: 1500,
+            ease: 'inOutSine',
+            loop: true,
+            direction: 'alternate',
+          });
+        }
+
+        waveAnim = animate('.ai-wave-bar', {
+          height: [6, 26, 10, 22, 6],
+          delay: (el, i) => i * 75,
+          duration: 800,
+          ease: 'inOutSine',
+          loop: true,
+        });
+      } catch (err) {
+        console.debug('Anime.js wave fallback', err);
+      }
+    }
+
+    return () => {
+      if (stepInterval) clearInterval(stepInterval);
+      if (barAnim && barAnim.pause) barAnim.pause();
+      if (waveAnim && waveAnim.pause) waveAnim.pause();
+    };
+  }, [geminiLoading]);
+
+  // Animate simulation results & counters on plan ready
   useEffect(() => {
     if (geminiPlan) {
       animateStagger('.ai-simulation-card, .ai-tier-stat-box, .ai-sim-table-wrap tbody tr', {
-        delay: 35,
-        duration: 450,
+        delay: 30,
+        duration: 400,
       });
+
+      if (tier1Ref.current) animateCounter(tier1Ref.current, geminiPlan.tier_1_count || 0, { duration: 600 });
+      if (tier2Ref.current) animateCounter(tier2Ref.current, geminiPlan.tier_2_count || 0, { duration: 600 });
+      if (tier3Ref.current) animateCounter(tier3Ref.current, geminiPlan.tier_3_count || 0, { duration: 600 });
+      if (tier4Ref.current) animateCounter(tier4Ref.current, geminiPlan.tier_4_count || 0, { duration: 600 });
     }
   }, [geminiPlan]);
+  // Table sorting and pagination
+  const [search, setSearch] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
   const [sortCol, setSortCol] = useState('');
   const [sortDir, setSortDir] = useState('asc');
   const [currentPage, setCurrentPage] = useState(1);
@@ -249,7 +305,7 @@ function AssignmentsPage() {
       if (typeof detail === 'string' && detail.includes('GEMINI_API_KEY')) {
         setError(t('ai_api_key_missing'));
       } else {
-        setError(`Gemini AI: ${detail}`);
+        setError(`AI Engine: ${detail}`);
       }
     } finally {
       setGeminiLoading(false);
@@ -402,6 +458,59 @@ function AssignmentsPage() {
         </div>
       </div>
 
+      {/* ─── AI Calculating Banner with Anime.js Neural Processing Animation ─── */}
+      {geminiLoading && (
+        <div className="ai-calc-loading-card">
+          <div className="ai-calc-hero">
+            <div className="ai-calc-core-status">
+              <div className="ai-calc-waves-wrapper">
+                <div className="ai-wave-bar" />
+                <div className="ai-wave-bar" />
+                <div className="ai-wave-bar" />
+                <div className="ai-wave-bar" />
+                <div className="ai-wave-bar" />
+                <div className="ai-wave-bar" />
+                <div className="ai-wave-bar" />
+                <div className="ai-wave-bar" />
+              </div>
+              <div className="ai-calc-title-group">
+                <h3>{t('ai_calc_title')}</h3>
+                <p className="ai-calc-substatus">
+                  {calcStep === 1 && t('ai_calc_step_1')}
+                  {calcStep === 2 && t('ai_calc_step_2')}
+                  {calcStep === 3 && t('ai_calc_step_3')}
+                  {calcStep === 4 && t('ai_calc_step_4')}
+                </p>
+              </div>
+            </div>
+            <span className="ai-calc-badge">Smart AI Engine</span>
+          </div>
+
+          <div className="ai-calc-track">
+            <div ref={calcBarRef} className="ai-calc-glow-bar" />
+          </div>
+
+          <div className="ai-calc-steps-grid">
+            <div className={`ai-calc-step-card ${calcStep === 1 ? 'active' : ''}`}>
+              <div className="ai-step-indicator">1</div>
+              <span className="ai-step-text">{t('ai_calc_step_1')}</span>
+            </div>
+            <div className={`ai-calc-step-card ${calcStep === 2 ? 'active' : ''}`}>
+              <div className="ai-step-indicator">2</div>
+              <span className="ai-step-text">{t('ai_calc_step_2')}</span>
+            </div>
+            <div className={`ai-calc-step-card ${calcStep === 3 ? 'active' : ''}`}>
+              <div className="ai-step-indicator">3</div>
+              <span className="ai-step-text">{t('ai_calc_step_3')}</span>
+            </div>
+            <div className={`ai-calc-step-card ${calcStep === 4 ? 'active' : ''}`}>
+              <div className="ai-step-indicator">4</div>
+              <span className="ai-step-text">{t('ai_calc_step_4')}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ─── AI Allocation Simulation Results ─────────────────────────────── */}
       {geminiPlan && (
         <div className="ai-simulation-card">
@@ -409,7 +518,7 @@ function AssignmentsPage() {
             <div className="ai-sim-title-group">
               <div className="ai-sim-heading-row">
                 <h2>{t('ai_sim_title')}</h2>
-                <span className="badge-ai-model">Gemini Flash AI</span>
+                <span className="badge-ai-model">Smart AI Engine</span>
               </div>
               {geminiPlan.summary && (
                 <p className="ai-sim-summary">{geminiPlan.summary}</p>
@@ -434,28 +543,28 @@ function AssignmentsPage() {
             <div className="ai-tier-stat-box tier-box-1">
               <div className="tier-box-badge">I</div>
               <div className="tier-box-content">
-                <span className="tier-box-num">{geminiPlan.tier_1_count || 0}</span>
+                <span ref={tier1Ref} className="tier-box-num">{geminiPlan.tier_1_count || 0}</span>
                 <span className="tier-box-label">{t('ai_tier_1')}</span>
               </div>
             </div>
             <div className="ai-tier-stat-box tier-box-2">
               <div className="tier-box-badge">II</div>
               <div className="tier-box-content">
-                <span className="tier-box-num">{geminiPlan.tier_2_count || 0}</span>
+                <span ref={tier2Ref} className="tier-box-num">{geminiPlan.tier_2_count || 0}</span>
                 <span className="tier-box-label">{t('ai_tier_2')}</span>
               </div>
             </div>
             <div className="ai-tier-stat-box tier-box-3">
               <div className="tier-box-badge">III</div>
               <div className="tier-box-content">
-                <span className="tier-box-num">{geminiPlan.tier_3_count || 0}</span>
+                <span ref={tier3Ref} className="tier-box-num">{geminiPlan.tier_3_count || 0}</span>
                 <span className="tier-box-label">{t('ai_tier_3')}</span>
               </div>
             </div>
             <div className="ai-tier-stat-box tier-box-4">
               <div className="tier-box-badge">IV</div>
               <div className="tier-box-content">
-                <span className="tier-box-num">{geminiPlan.tier_4_count || 0}</span>
+                <span ref={tier4Ref} className="tier-box-num">{geminiPlan.tier_4_count || 0}</span>
                 <span className="tier-box-label">{t('ai_tier_4')}</span>
               </div>
             </div>
@@ -491,7 +600,7 @@ function AssignmentsPage() {
                 </tr>
               </thead>
               <tbody>
-                {geminiPlan.items.slice(0, 50).map((item, idx) => (
+                {(geminiPlan.items || []).slice(0, 50).map((item, idx) => (
                   <tr key={`${item.student_id}-${item.locker_id}-${idx}`}>
                     <td>
                       <span className={`badge ${tierBadgeClass(item.tier)}`}>
@@ -524,11 +633,11 @@ function AssignmentsPage() {
               </tbody>
             </table>
           </div>
-          {geminiPlan.items.length > 50 && (
+          {(geminiPlan.items || []).length > 50 && (
             <p className="sim-pagination-note">
               {t('assign_showing_first_n', {
-                count: Math.min(50, geminiPlan.items.length),
-                total: geminiPlan.items.length
+                count: Math.min(50, (geminiPlan.items || []).length),
+                total: (geminiPlan.items || []).length
               })}
             </p>
           )}
