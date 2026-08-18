@@ -3,7 +3,7 @@ import { getMyDashboard } from '../api/assignments';
 import { createIncident, getIncidents } from '../api/incidents';
 import { useLanguage } from '../context/LanguageContext';
 import { useWebSocket } from '../hooks/useWebSocket';
-import { animateStagger } from '../utils/animations';
+import { animateStagger, animateModalOpen } from '../utils/animations';
 
 function UserDashboard() {
   const { t, lang } = useLanguage();
@@ -17,6 +17,8 @@ function UserDashboard() {
   const [selectedPhoto, setSelectedPhoto] = useState(null);
 
   const fileInputRef = useRef(null);
+  const modalRef = useRef(null);
+  const overlayRef = useRef(null);
 
   const [reportForm, setReportForm] = useState({
     type: 'needs_repair',
@@ -54,6 +56,16 @@ function UserDashboard() {
       });
     }
   }, [data]);
+
+  useEffect(() => {
+    if (reportModal) {
+      document.body.style.overflow = 'hidden';
+      animateModalOpen(modalRef.current, overlayRef.current);
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [reportModal]);
 
   useWebSocket({
     assignment_change: fetchData,
@@ -131,11 +143,17 @@ function UserDashboard() {
   };
 
   return (
-    <div className="user-dashboard">
-      <div className="ud-header">
-        <div className="ud-greeting">
-          <h1>{data.student ? t('ud_welcome_name', { name: data.student.full_name }) : t('ud_welcome')}</h1>
-          <p className="ud-email">{data.email}</p>
+    <div className="user-dashboard minimal-page">
+      {/* Architectural Header */}
+      <div className="minimal-hero-section">
+        <div className="minimal-hero-left">
+          <span className="minimal-eyebrow">{t('nav_brand')} · {t('nav_my_locker')}</span>
+          <h1 className="minimal-headline">
+            {data.student ? t('ud_welcome_name', { name: data.student.full_name }) : t('ud_welcome')}
+          </h1>
+          <p className="minimal-subtitle">
+            {data.email} · {t('student_role_student')}
+          </p>
         </div>
       </div>
 
@@ -145,28 +163,34 @@ function UserDashboard() {
         </div>
       )}
 
+      {/* Student Profile Card */}
       {data.student && (
         <div className="ud-profile-card">
-          <div className="ud-profile-avatar">
-            {data.student.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
-          </div>
-          <div className="ud-profile-details">
-            <h2>{data.student.full_name}</h2>
-            <div className="ud-profile-tags">
-              <span className="ud-tag ud-tag-blue">{data.student.group}</span>
-              <span className="ud-tag ud-tag-purple">{data.student.course} {t('ud_course')}</span>
-              <span className="ud-tag ud-tag-gray">{data.student.barcode}</span>
+          <div className="ud-profile-left">
+            <div className="ud-profile-avatar">
+              {data.student.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+            </div>
+            <div className="ud-profile-details">
+              <h2 className="ud-student-name">{data.student.full_name}</h2>
+              <div className="ud-profile-tags">
+                <span className="ud-tag">{data.student.group}</span>
+                <span className="ud-tag">{data.student.course} {t('ud_course')}</span>
+                <span className="ud-tag">{data.student.barcode}</span>
+              </div>
             </div>
           </div>
+
           <div className="ud-profile-stats">
             <div className="ud-mini-stat">
               <span className="ud-mini-stat-value">{data.total_assignments}</span>
               <span className="ud-mini-stat-label">{t('ud_total')}</span>
             </div>
+            <div className="ud-stat-divider" />
             <div className="ud-mini-stat">
               <span className="ud-mini-stat-value ud-active-value">{data.active_count}</span>
               <span className="ud-mini-stat-label">{t('ud_active')}</span>
             </div>
+            <div className="ud-stat-divider" />
             <div className="ud-mini-stat">
               <span className="ud-mini-stat-value">{pastAssignments.length}</span>
               <span className="ud-mini-stat-label">{t('ud_past')}</span>
@@ -175,27 +199,37 @@ function UserDashboard() {
         </div>
       )}
 
+      {/* Active Locker Detail Card */}
       {data.active_locker ? (
         <div className="ud-active-section">
-          <div className="ud-section-header-flex">
-            <h2 className="ud-section-title">{t('ud_active_locker')}</h2>
-            <button
-              className="btn btn-sm btn-outline-warning"
-              onClick={() => setReportModal(true)}
-            >
-              {t('incident_report_defect')}
-            </button>
-          </div>
-
           <div className="ud-locker-detail-card">
-            <div className="ud-locker-header">
-              <div className="ud-locker-number">#{data.active_locker.number}</div>
-              <span className="status-badge status-active">{t('ud_active')}</span>
+            <div className="ud-locker-header-minimal">
+              <div className="ud-locker-title-group">
+                <span className="minimal-eyebrow" style={{ marginBottom: '0.2rem' }}>{t('ud_active_locker')}</span>
+                <div className="ud-locker-main-row">
+                  <span className="ud-locker-number">LOCKER #{data.active_locker.number}</span>
+                  <span className="minimal-status-pill resolved">
+                    <span className="minimal-status-dot" />
+                    <span>{t('ud_active')}</span>
+                  </span>
+                </div>
+              </div>
+
+              <button
+                className="btn-report-minimal"
+                onClick={() => setReportModal(true)}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+                </svg>
+                <span>{t('incident_report_defect')}</span>
+              </button>
             </div>
+
             <div className="ud-locker-grid">
               <div className="ud-locker-field">
                 <span className="ud-field-label">{t('ud_floor')}</span>
-                <span className="ud-field-value">{data.active_locker.floor}</span>
+                <span className="ud-field-value">{t('tech_task_card_floor')} {data.active_locker.floor}</span>
               </div>
               <div className="ud-locker-field">
                 <span className="ud-field-label">{t('ud_size')}</span>
@@ -207,7 +241,7 @@ function UserDashboard() {
               </div>
               <div className="ud-locker-field">
                 <span className="ud-field-label">{t('ud_capacity')}</span>
-                <span className="ud-field-value">{data.active_locker.occupied}/{data.active_locker.capacity}</span>
+                <span className="ud-field-value">{data.active_locker.occupied} / {data.active_locker.capacity}</span>
               </div>
               <div className="ud-locker-field">
                 <span className="ud-field-label">{t('ud_assigned')}</span>
@@ -257,7 +291,7 @@ function UserDashboard() {
           )}
         </div>
       ) : (
-        <div className="empty-state">
+        <div className="empty-state minimal-empty">
           <div className="empty-locker-visual" aria-hidden="true">
             <div className="empty-locker-glow" />
             <div className="empty-locker-body">
@@ -278,15 +312,16 @@ function UserDashboard() {
         </div>
       )}
 
+      {/* History Section */}
       {pastAssignments.length > 0 && (
         <div className="ud-history-section">
-          <h2 className="ud-section-title">{t('ud_history')}</h2>
+          <h2 className="minimal-section-title">{t('ud_history')}</h2>
           <div className="ud-history-cards">
             {pastAssignments.map((a) => (
               <div key={a.id} className="ud-history-card">
                 <div className="ud-history-card-left">
-                  <span className="ud-history-locker">#{a.locker_number}</span>
-                  <span className="ud-history-meta">{t('ud_floor')} {a.locker_floor} • {a.locker_size} • {a.locker_access_type}</span>
+                  <span className="ud-history-locker">LOCKER #{a.locker_number}</span>
+                  <span className="ud-history-meta">{t('ud_floor')} {a.locker_floor} · {a.locker_size} · {a.locker_access_type}</span>
                 </div>
                 <div className="ud-history-card-right">
                   <span className="ud-history-dates">{formatDate(a.assigned_at)} → {formatDate(a.released_at)}</span>
@@ -299,8 +334,7 @@ function UserDashboard() {
       )}
 
       {!data.student && (
-        <div className="empty-state">
-          <div className="empty-icon">&#128100;</div>
+        <div className="empty-state minimal-empty">
           <h2>{t('ud_no_profile')}</h2>
           <p>{t('ud_no_profile_desc')}</p>
         </div>
@@ -308,11 +342,21 @@ function UserDashboard() {
 
       {/* Report Defect Modal */}
       {reportModal && (
-        <div className="modal-overlay" onClick={() => setReportModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay" ref={overlayRef} onClick={() => setReportModal(false)}>
+          <div className="modal-content" ref={modalRef} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>{t('incident_report_title')}</h2>
-              <button className="modal-close" onClick={() => setReportModal(false)}>&times;</button>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={() => setReportModal(false)}
+                aria-label="Close"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
             </div>
             <form onSubmit={handleReportSubmit}>
               <div className="modal-body">
@@ -336,7 +380,7 @@ function UserDashboard() {
                   <input
                     className="form-control"
                     required
-                    placeholder="Например: Заедает электронный замок / Сломана петля"
+                    placeholder={t('incident_title_placeholder') || 'e.g. Electronic lock jammed / Hinge broken'}
                     value={reportForm.title}
                     onChange={e => setReportForm({ ...reportForm, title: e.target.value })}
                   />
@@ -346,7 +390,7 @@ function UserDashboard() {
                   <textarea
                     className="form-control"
                     rows="3"
-                    placeholder="Подробно опишите, что именно произошло..."
+                    placeholder={t('incident_desc_placeholder') || 'Describe in detail what happened...'}
                     value={reportForm.description}
                     onChange={e => setReportForm({ ...reportForm, description: e.target.value })}
                   />
@@ -362,29 +406,41 @@ function UserDashboard() {
                     style={{ display: 'none' }}
                     onChange={handleImageUpload}
                   />
-                  <div className="photo-upload-controls">
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-outline"
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      {reportForm.image_url ? t('btn_edit') : t('incident_attach_photo')}
-                    </button>
-                    {reportForm.image_url && (
+                  <div className="defect-photo-uploader">
+                    {reportForm.image_url ? (
+                      <div className="defect-photo-preview-card">
+                        <img src={reportForm.image_url} alt="Preview" className="defect-photo-img" />
+                        <div className="defect-photo-preview-actions">
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline"
+                            onClick={() => fileInputRef.current?.click()}
+                          >
+                            {t('btn_edit')}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-danger"
+                            onClick={() => setReportForm({ ...reportForm, image_url: '' })}
+                          >
+                            {t('incident_photo_remove')}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
                       <button
                         type="button"
-                        className="btn btn-sm btn-danger"
-                        onClick={() => setReportForm({ ...reportForm, image_url: '' })}
+                        className="defect-upload-dropzone"
+                        onClick={() => fileInputRef.current?.click()}
                       >
-                        {t('incident_photo_remove')}
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                          <circle cx="12" cy="13" r="4"/>
+                        </svg>
+                        <span>{t('incident_attach_photo')}</span>
                       </button>
                     )}
                   </div>
-                  {reportForm.image_url && (
-                    <div className="image-preview-box">
-                      <img src={reportForm.image_url} alt="Preview" className="img-thumbnail" />
-                    </div>
-                  )}
                 </div>
               </div>
               <div className="modal-actions">

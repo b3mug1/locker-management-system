@@ -6,7 +6,7 @@ import io
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_current_admin, get_db
+from app.core.dependencies import get_current_admin, get_current_staff, get_db
 from app.core.websocket import manager
 from app.models.user import User
 from app.schemas.locker import LockerCreate, LockerRead, LockerUpdate
@@ -21,7 +21,7 @@ async def list_lockers(
     skip: int = Query(0, ge=0),
     limit: int = Query(1000, ge=1, le=10000),
     db: AsyncSession = Depends(get_db),
-    _admin: User = Depends(get_current_admin),
+    _user: User = Depends(get_current_staff),
 ):
     service = LockerService(db)
     return await service.get_all(skip=skip, limit=limit)
@@ -30,7 +30,7 @@ async def list_lockers(
 @router.get("/count")
 async def count_lockers(
     db: AsyncSession = Depends(get_db),
-    _admin: User = Depends(get_current_admin),
+    _user: User = Depends(get_current_staff),
 ):
     service = LockerService(db)
     count = await service.count()
@@ -41,7 +41,7 @@ async def count_lockers(
 async def get_locker(
     locker_id: int,
     db: AsyncSession = Depends(get_db),
-    _admin: User = Depends(get_current_admin),
+    _user: User = Depends(get_current_staff),
 ):
     service = LockerService(db)
     locker = await service.get_by_id(locker_id)

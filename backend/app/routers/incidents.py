@@ -289,7 +289,7 @@ async def resolve_incident(
     if incident.created_by_id:
         await NotificationService(db).create(
             user_id=incident.created_by_id,
-            title="Шкафчик отремонтирован! ✅",
+            title="Шкафчик отремонтирован",
             message=f"Ремонт шкафчика №{incident.locker.number if incident.locker else ''} успешно завершён. Отчёт: {data.notes or 'Неисправность устранена.'}",
             type="success",
             commit=False,

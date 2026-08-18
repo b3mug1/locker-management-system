@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user, get_db
+from app.core.websocket import manager
 from app.models.user import User
 from app.schemas.notification import NotificationRead
 from app.services.notification import NotificationService
@@ -38,6 +39,7 @@ async def mark_notification_read(
     ok = await NotificationService(db).mark_read(current_user.id, notification_id)
     if not ok:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notification not found")
+    await manager.broadcast("notification_change")
     return {"status": "ok"}
 
 
@@ -46,4 +48,6 @@ async def mark_all_notifications_read(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return {"marked": await NotificationService(db).mark_all_read(current_user.id)}
+    marked = await NotificationService(db).mark_all_read(current_user.id)
+    await manager.broadcast("notification_change")
+    return {"marked": marked}

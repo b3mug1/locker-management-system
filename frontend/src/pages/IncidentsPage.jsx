@@ -4,7 +4,7 @@ import { getLockers } from '../api/lockers';
 import { useLanguage } from '../context/LanguageContext';
 import { useWebSocket } from '../hooks/useWebSocket';
 import ConfirmModal from '../components/ConfirmModal';
-import { animateStagger } from '../utils/animations';
+import { animateStagger, animateModalOpen } from '../utils/animations';
 
 function IncidentsPage() {
   const { t, lang } = useLanguage();
@@ -16,17 +16,30 @@ function IncidentsPage() {
   const [editingId, setEditingId] = useState(null);
   const [filterStatus, setFilterStatus] = useState('');
   const [filterTech, setFilterTech] = useState('');
+  const [search, setSearch] = useState('');
   const [error, setError] = useState('');
   const [confirmModal, setConfirmModal] = useState({ open: false, title: '', message: '', onConfirm: null });
   const [assignModal, setAssignModal] = useState({ open: false, incident: null, technicianId: '' });
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const fileInputRef = useRef(null);
+  const assignModalRef = useRef(null);
+  const assignOverlayRef = useRef(null);
 
   useEffect(() => {
     if (incidents.length > 0) {
       animateStagger('.table tbody tr, .card', { delay: 30, duration: 400 });
     }
-  }, [incidents, filterStatus, filterTech]);
+  }, [incidents, filterStatus, filterTech, search]);
+
+  useEffect(() => {
+    if (assignModal.open) {
+      document.body.style.overflow = 'hidden';
+      animateModalOpen(assignModalRef.current, assignOverlayRef.current);
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [assignModal.open]);
 
   const [form, setForm] = useState({
     locker_id: '',
@@ -79,8 +92,18 @@ function IncidentsPage() {
     let list = incidents;
     if (filterStatus) list = list.filter(i => i.status === filterStatus);
     if (filterTech) list = list.filter(i => String(i.assigned_technician_id) === filterTech);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(i =>
+        (i.title && i.title.toLowerCase().includes(q)) ||
+        (i.description && i.description.toLowerCase().includes(q)) ||
+        (String(i.locker_number || i.locker_id).toLowerCase().includes(q)) ||
+        (i.created_by_name && i.created_by_name.toLowerCase().includes(q)) ||
+        (i.created_by_email && i.created_by_email.toLowerCase().includes(q))
+      );
+    }
     return list;
-  }, [incidents, filterStatus, filterTech]);
+  }, [incidents, filterStatus, filterTech, search]);
 
   const resetForm = () => {
     setForm({
@@ -327,13 +350,22 @@ function IncidentsPage() {
       )}
 
       <div className="filter-bar">
+        <div className="search-input-wrap">
+          <input
+            type="text"
+            className="filter-search-input"
+            placeholder={lang === 'ru' ? 'Поиск по номеру, названию или заявителю...' : 'Search by locker #, title or reporter...'}
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
         <select className="filter-select" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
           <option value="">{t('incidents_all_statuses')}</option>
           {statuses.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
         </select>
         {technicians.length > 0 && (
           <select className="filter-select" value={filterTech} onChange={e => setFilterTech(e.target.value)}>
-            <option value="">-- {t('incident_assigned_to')} (Все) --</option>
+            <option value="">-- {t('incident_assigned_to')} ({lang === 'ru' ? 'Все' : 'All'}) --</option>
             {technicians.map(tech => (
               <option key={tech.id} value={tech.id}>{tech.email}</option>
             ))}
@@ -405,9 +437,6 @@ function IncidentsPage() {
                 <td>{formatDate(i.created_at)}</td>
                 <td>
                   <div className="table-actions">
-                    <button className="btn btn-sm btn-outline" onClick={() => openAssign(i)} title={t('incident_assign_btn')}>
-                      Assign
-                    </button>
                     <button className="btn btn-sm btn-outline" onClick={() => edit(i)}>
                       {t('btn_edit')}
                     </button>
@@ -425,11 +454,21 @@ function IncidentsPage() {
 
       {/* Assign Technician Modal */}
       {assignModal.open && (
-        <div className="modal-overlay" onClick={() => setAssignModal({ open: false, incident: null, technicianId: '' })}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay" ref={assignOverlayRef} onClick={() => setAssignModal({ open: false, incident: null, technicianId: '' })}>
+          <div className="modal-content" ref={assignModalRef} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>{t('incident_assign_modal_title')}</h2>
-              <button className="modal-close" onClick={() => setAssignModal({ open: false, incident: null, technicianId: '' })}>&times;</button>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={() => setAssignModal({ open: false, incident: null, technicianId: '' })}
+                aria-label="Close"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
             </div>
             <form onSubmit={handleConfirmAssign}>
               <div className="modal-body">

@@ -1,8 +1,8 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { getMyTechnicianTasks, startRepair, resolveIncident } from '../api/incidents';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useLanguage } from '../context/LanguageContext';
-import { animateStagger } from '../utils/animations';
+import { animateStagger, animateModalOpen } from '../utils/animations';
 
 export default function TechnicianDashboard() {
   const { t } = useLanguage();
@@ -15,6 +15,8 @@ export default function TechnicianDashboard() {
   // Modal for resolving task with notes
   const [resolveModal, setResolveModal] = useState({ open: false, task: null, notes: '' });
   const [submitting, setSubmitting] = useState(false);
+  const resolveModalRef = useRef(null);
+  const resolveOverlayRef = useRef(null);
 
   const fetchTasks = useCallback(async () => {
     try {
@@ -33,9 +35,19 @@ export default function TechnicianDashboard() {
 
   useEffect(() => {
     if (tasks.length > 0) {
-      animateStagger('.task-card, .td-stat-card', { delay: 40, duration: 450 });
+      animateStagger('.tech-card, .dash-hero-stat', { delay: 40, duration: 450 });
     }
   }, [tasks, filterStatus]);
+
+  useEffect(() => {
+    if (resolveModal.open) {
+      document.body.style.overflow = 'hidden';
+      animateModalOpen(resolveModalRef.current, resolveOverlayRef.current);
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [resolveModal.open]);
 
   useWebSocket({ incident_change: fetchTasks, locker_change: fetchTasks });
 
@@ -103,55 +115,61 @@ export default function TechnicianDashboard() {
   };
 
   return (
-    <div className="page technician-page">
-      <div className="dash-hero">
-        <div className="dash-hero-content">
-          <h1>{t('tech_dashboard_title')}</h1>
-          <p className="dash-hero-subtitle">{t('tech_dashboard_subtitle')}</p>
+    <div className="page technician-page minimal-page">
+      {/* Minimalist Architectural Header */}
+      <div className="minimal-hero-section">
+        <div className="minimal-hero-left">
+          <span className="minimal-eyebrow">AITU LOCKER SYSTEM · WORKSPACE</span>
+          <h1 className="minimal-headline">{t('tech_dashboard_title')}</h1>
+          <p className="minimal-subtitle">{t('tech_dashboard_subtitle')}</p>
         </div>
-        <div className="dash-hero-stats">
-          <div className="dash-hero-stat">
-            <span className="dash-hero-stat-value">{countAssigned}</span>
-            <span className="dash-hero-stat-label">{t('tech_assigned_tasks')}</span>
+
+        <div className="minimal-hero-stats">
+          <div className="minimal-stat-card">
+            <span className="minimal-stat-num">{countAssigned}</span>
+            <span className="minimal-stat-lbl">{t('tech_assigned_tasks')}</span>
           </div>
-          <div className="dash-hero-stat">
-            <span className="dash-hero-stat-value">{countInProgress}</span>
-            <span className="dash-hero-stat-label">{t('tech_in_progress')}</span>
+          <div className="minimal-stat-divider" />
+          <div className="minimal-stat-card">
+            <span className="minimal-stat-num">{countInProgress}</span>
+            <span className="minimal-stat-lbl">{t('tech_in_progress')}</span>
           </div>
-          <div className="dash-hero-stat">
-            <span className="dash-hero-stat-value">{countResolved}</span>
-            <span className="dash-hero-stat-label">{t('tech_resolved_today')}</span>
+          <div className="minimal-stat-divider" />
+          <div className="minimal-stat-card">
+            <span className="minimal-stat-num">{countResolved}</span>
+            <span className="minimal-stat-lbl">{t('tech_resolved_today')}</span>
           </div>
         </div>
       </div>
 
       {error && <div className="alert alert-error">{error}</div>}
 
-      <div className="tech-filters-bar">
-        <div className="btn-group">
+      {/* Minimalist Segmented Tabs */}
+      <div className="minimal-filters-row">
+        <div className="minimal-tabs-bar">
           <button
-            className={`btn btn-sm ${filterStatus === 'all' ? 'btn-primary' : 'btn-outline'}`}
+            className={`minimal-tab-btn ${filterStatus === 'all' ? 'active' : ''}`}
             onClick={() => setFilterStatus('all')}
           >
-            {t('incidents_all_statuses')} ({tasks.length})
+            {t('incidents_all_statuses')} <span className="tab-count">{tasks.length}</span>
           </button>
           <button
-            className={`btn btn-sm ${filterStatus === 'assigned' ? 'btn-primary' : 'btn-outline'}`}
+            className={`minimal-tab-btn ${filterStatus === 'assigned' ? 'active' : ''}`}
             onClick={() => setFilterStatus('assigned')}
           >
-            {t('incident_status_assigned')} ({countAssigned})
+            {t('incident_status_assigned')} <span className="tab-count">{countAssigned}</span>
           </button>
           <button
-            className={`btn btn-sm ${filterStatus === 'in_progress' ? 'btn-primary' : 'btn-outline'}`}
+            className={`minimal-tab-btn ${filterStatus === 'in_progress' ? 'active' : ''}`}
             onClick={() => setFilterStatus('in_progress')}
           >
-            {t('incident_status_in_progress')} ({countInProgress})
+            {t('incident_status_in_progress')} <span className="tab-count">{countInProgress}</span>
           </button>
           <button
-            className={`btn btn-sm ${filterStatus === 'resolved' ? 'btn-primary' : 'btn-outline'}`}
+            className={`minimal-tab-btn ${filterStatus === 'resolved' ? 'active' : ''}`}
             onClick={() => setFilterStatus('resolved')}
           >
-            {t('incident_status_resolved')} ({countResolved})
+            {t('incident_status_resolved')} <span className="tab-count">{countResolved}</span>
           </button>
         </div>
       </div>
@@ -159,88 +177,97 @@ export default function TechnicianDashboard() {
       {loading ? (
         <div className="loading">{t('incidents_loading')}</div>
       ) : filteredTasks.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-state-icon">Info</div>
+        <div className="empty-state minimal-empty">
           <p>{t('tech_no_tasks')}</p>
         </div>
       ) : (
-        <div className="tech-cards-grid">
+        <div className="minimal-cards-grid">
           {filteredTasks.map((task) => (
-            <div key={task.id} className={`tech-card ${task.status === 'in_progress' ? 'active-border' : ''}`}>
-              <div className="tech-card-header">
-                <div className="tech-card-locker">
-                  <span className="tech-locker-num">#{task.locker_number || 'N/A'}</span>
+            <div key={task.id} className={`minimal-card ${task.status === 'in_progress' ? 'in-progress' : ''}`}>
+              <div className="minimal-card-top">
+                <div className="minimal-unit-wrap">
+                  <span className="minimal-unit-title">LOCKER #{task.locker_number || task.locker_id}</span>
                   {task.locker_floor && (
-                    <span className="badge badge-outline">
+                    <span className="minimal-floor-tag">
                       {t('tech_task_card_floor')} {task.locker_floor}
                     </span>
                   )}
                 </div>
-                <span className={`badge ${statusClass(task.status)}`}>
-                  {statusLabels[task.status] || task.status}
-                </span>
+                <div className={`minimal-status-pill ${task.status}`}>
+                  <span className="minimal-status-dot" />
+                  <span>{statusLabels[task.status] || task.status}</span>
+                </div>
               </div>
 
-              <div className="tech-card-body">
-                <h3 className="tech-task-title">{task.title}</h3>
-                <div className="tech-task-meta">
-                  <span className="badge badge-light">
+              <div className="minimal-card-body">
+                <h3 className="minimal-item-title">{task.title}</h3>
+
+                <div className="minimal-meta-tags">
+                  <span className="minimal-type-chip">
                     {typeLabels[task.type] || task.type}
                   </span>
                   {task.created_by_name && (
-                    <span className="tech-reporter">
+                    <span className="minimal-reporter-tag">
                       {t('incident_reporter')}: <strong>{task.created_by_name}</strong>
                     </span>
                   )}
                 </div>
 
                 {task.description && (
-                  <p className="tech-task-desc">{task.description}</p>
+                  <p className="minimal-desc-box">{task.description}</p>
                 )}
 
                 {task.image_url && (
-                  <div className="tech-photo-preview-wrap">
+                  <div
+                    className="minimal-photo-box"
+                    onClick={() => setSelectedPhoto(task.image_url)}
+                    title={t('incident_photo_click_zoom')}
+                  >
                     <img
                       src={task.image_url}
                       alt="Defect"
-                      className="tech-photo-thumb"
-                      onClick={() => setSelectedPhoto(task.image_url)}
-                      title={t('incident_photo_click_zoom')}
+                      className="minimal-thumb-img"
                     />
-                    <span className="tech-photo-hint">{t('tech_view_photo')}</span>
+                    <div className="minimal-photo-info">
+                      <span className="minimal-photo-action-text">{t('tech_view_photo')}</span>
+                      <span className="minimal-photo-arrow">→</span>
+                    </div>
                   </div>
                 )}
 
                 {task.technician_notes && (
-                  <div className="tech-notes-box">
-                    <strong>{t('incident_tech_notes')}:</strong>
-                    <p>{task.technician_notes}</p>
+                  <div className="minimal-notes-callout">
+                    <span className="minimal-notes-title">{t('incident_tech_notes')}</span>
+                    <p className="minimal-notes-text">{task.technician_notes}</p>
                   </div>
                 )}
               </div>
 
-              <div className="tech-card-footer">
+              <div className="minimal-card-bottom">
                 {task.status === 'assigned' || task.status === 'open' ? (
                   <button
-                    className="btn btn-primary btn-block"
+                    className="minimal-action-btn"
                     onClick={() => handleStartRepair(task.id)}
                   >
-                    {t('incident_start_repair')}
+                    <span>{t('incident_start_repair')}</span>
+                    <span className="btn-arrow">→</span>
                   </button>
                 ) : null}
 
                 {task.status === 'in_progress' ? (
                   <button
-                    className="btn btn-success btn-block"
+                    className="minimal-action-btn complete-btn"
                     onClick={() => handleOpenResolveModal(task)}
                   >
-                    {t('incident_resolve_repair')}
+                    <span>{t('incident_resolve_repair')}</span>
+                    <span className="btn-arrow">→</span>
                   </button>
                 ) : null}
 
                 {task.status === 'resolved' ? (
-                  <div className="tech-completed-stamp">
-                    {t('incident_status_resolved')} ({new Date(task.resolved_at || task.created_at).toLocaleDateString()})
+                  <div className="minimal-resolved-badge">
+                    <span className="minimal-check-circle">✓</span>
+                    <span>{t('incident_status_resolved')} ({new Date(task.resolved_at || task.created_at).toLocaleDateString()})</span>
                   </div>
                 ) : null}
               </div>
@@ -263,15 +290,20 @@ export default function TechnicianDashboard() {
 
       {/* Resolve Incident Report Modal */}
       {resolveModal.open && (
-        <div className="modal-overlay" onClick={() => setResolveModal({ open: false, task: null, notes: '' })}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay" ref={resolveOverlayRef} onClick={() => setResolveModal({ open: false, task: null, notes: '' })}>
+          <div className="modal-content" ref={resolveModalRef} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>{t('incident_resolve_modal_title')}</h2>
               <button
+                type="button"
                 className="modal-close"
                 onClick={() => setResolveModal({ open: false, task: null, notes: '' })}
+                aria-label="Close"
               >
-                &times;
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
               </button>
             </div>
             <form onSubmit={handleConfirmResolve}>

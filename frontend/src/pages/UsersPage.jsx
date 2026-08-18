@@ -1,16 +1,39 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getUsers, createUser, deleteUser } from '../api/users';
 import { getStudents } from '../api/students';
 import { useLanguage } from '../context/LanguageContext';
 import ConfirmModal from '../components/ConfirmModal';
 import { animateStagger } from '../utils/animations';
+import { RefreshCw, Copy, Check, ShieldCheck } from 'lucide-react';
+
+const generateSecurePassword = (length = 10) => {
+  const lower = 'abcdefghijkmnpqrstuvwxyz';
+  const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const digits = '23456789';
+  const symbols = '!@#$%&*';
+
+  let pwd = '';
+  pwd += upper.charAt(Math.floor(Math.random() * upper.length));
+  pwd += lower.charAt(Math.floor(Math.random() * lower.length));
+  pwd += digits.charAt(Math.floor(Math.random() * digits.length));
+  pwd += symbols.charAt(Math.floor(Math.random() * symbols.length));
+
+  const all = lower + upper + digits + symbols;
+  for (let i = 0; i < length - 4; i++) {
+    pwd += all.charAt(Math.floor(Math.random() * all.length));
+  }
+
+  return pwd.split('').sort(() => 0.5 - Math.random()).join('');
+};
 
 function UsersPage() {
   const { t } = useLanguage();
   const [users, setUsers] = useState([]);
   const [students, setStudents] = useState([]);
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [password, setPassword] = useState(() => generateSecurePassword());
+  const [copied, setCopied] = useState(false);
+  const [lastCreated, setLastCreated] = useState(null);
   const [role, setRole] = useState('user');
   const [studentId, setStudentId] = useState('');
   const [loading, setLoading] = useState(true);
@@ -36,6 +59,30 @@ function UsersPage() {
 
   useEffect(() => { fetchUsers(); fetchStudents(); }, []);
 
+  const handleRegeneratePassword = useCallback(() => {
+    const newPwd = generateSecurePassword();
+    setPassword(newPwd);
+    setCopied(false);
+  }, []);
+
+  const handleCopyPassword = () => {
+    if (!password) return;
+    navigator.clipboard.writeText(password);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleStudentSelect = (selectedId) => {
+    setStudentId(selectedId);
+    if (!selectedId) return;
+    const selectedStudent = students.find(s => String(s.id) === String(selectedId));
+    if (selectedStudent && !email) {
+      // Suggest university email format based on barcode
+      const cleanBarcode = selectedStudent.barcode.toLowerCase().replace(/[^a-z0-9]/g, '');
+      setEmail(`${cleanBarcode}@astanait.edu.kz`);
+    }
+  };
+
   const linkedStudentIds = new Set(users.filter(u => u.student_id).map(u => u.student_id));
   const availableStudents = students.filter(s => !linkedStudentIds.has(s.id));
 
@@ -57,13 +104,25 @@ function UsersPage() {
 
   const handleCreate = async (e) => {
     e.preventDefault(); setError(''); setSuccess(''); setCreating(true);
+    const usedPassword = password.trim() || generateSecurePassword();
     try {
-      const result = await createUser(email, password, role, role === 'user' && studentId ? parseInt(studentId) : null);
-      if (result.email_sent) setSuccess(t('users_created_email', { email }));
-      else setSuccess(t('users_created_no_email', { email }));
-      setEmail(''); setPassword(''); setRole('user'); setStudentId(''); fetchUsers();
-    } catch (err) { setError(err.response?.data?.detail || t('users_create_failed')); }
-    finally { setCreating(false); }
+      const result = await createUser(email, usedPassword, role, role === 'user' && studentId ? parseInt(studentId) : null);
+      setLastCreated({ email, password: usedPassword });
+      if (result.email_sent) {
+        setSuccess(t('users_created_email', { email }));
+      } else {
+        setSuccess(t('users_created_no_email', { email }));
+      }
+      setEmail('');
+      setRole('user');
+      setStudentId('');
+      setPassword(generateSecurePassword());
+      fetchUsers();
+    } catch (err) {
+      setError(err.response?.data?.detail || t('users_create_failed'));
+    } finally {
+      setCreating(false);
+    }
   };
 
   const handleDelete = async (userId, userEmail) => {
@@ -109,24 +168,88 @@ function UsersPage() {
       <div className="page-header">
         <h1>{t('users_title')}</h1>
         <div className="page-header-actions">
-          {selectedIds.size > 0 && <button className="btn btn-danger bulk-delete-btn" onClick={handleBulkDelete}>&#128465; {t('users_delete_selected', { count: selectedIds.size })}</button>}
+          {selectedIds.size > 0 && (
+            <button className="btn btn-danger bulk-delete-btn" onClick={handleBulkDelete}>
+              {t('users_delete_selected', { count: selectedIds.size })}
+            </button>
+          )}
         </div>
       </div>
 
       <div className="form-card">
         <h3>{t('users_create_title')}</h3>
         {error && <div className="alert alert-error">{error}</div>}
-        {success && <div className="alert alert-success">{success}</div>}
+        {success && (
+          <div className="alert alert-success" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '0.4rem' }}>
+            <div>{success}</div>
+            {lastCreated && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(0,0,0,0.04)', padding: '0.35rem 0.65rem', borderRadius: '6px', fontSize: '0.78rem' }}>
+                <span><strong>Login:</strong> {lastCreated.email}</span>
+                <span>·</span>
+                <span><strong>Password:</strong> <code style={{ fontFamily: 'monospace', fontWeight: 'bold' }}>{lastCreated.password}</code></span>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline"
+                  style={{ padding: '0.15rem 0.45rem', fontSize: '0.72rem', marginLeft: '0.25rem' }}
+                  onClick={() => navigator.clipboard.writeText(`${lastCreated.email} / ${lastCreated.password}`)}
+                >
+                  {t('users_copy_password')}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
         <form onSubmit={handleCreate}>
           <div className="form-row">
             <div className="form-group">
               <label>{t('users_email')}</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="******@astanait.edu.kz" required />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="******@astanait.edu.kz"
+                required
+              />
             </div>
+
             <div className="form-group">
-              <label>{t('users_password')}</label>
-              <input type="text" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t('users_password_ph')} required minLength={6} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                <label style={{ margin: 0 }}>{t('users_password')}</label>
+                <span className="badge" style={{ fontSize: '0.65rem', padding: '0.1rem 0.45rem' }}>
+                  {t('users_generated_badge')}
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: '0.35rem' }}>
+                <input
+                  type="text"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder={t('users_password_ph')}
+                  required
+                  minLength={6}
+                  style={{ fontFamily: 'monospace', fontWeight: 600, letterSpacing: '0.04em' }}
+                />
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  style={{ padding: '0 0.65rem' }}
+                  onClick={handleRegeneratePassword}
+                  title={t('users_regenerate_password')}
+                >
+                  <RefreshCw size={14} />
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  style={{ padding: '0 0.65rem' }}
+                  onClick={handleCopyPassword}
+                  title={t('users_copy_password')}
+                >
+                  {copied ? <Check size={14} color="#10B981" /> : <Copy size={14} />}
+                </button>
+              </div>
             </div>
+
             <div className="form-group">
               <label>{t('users_role')}</label>
               <select value={role} onChange={(e) => setRole(e.target.value)}>
@@ -136,17 +259,23 @@ function UsersPage() {
               </select>
             </div>
           </div>
+
           {role === 'user' && (
             <div className="form-row">
               <div className="form-group" style={{ flex: 1 }}>
                 <label>{t('users_link_student')}</label>
-                <select value={studentId} onChange={(e) => setStudentId(e.target.value)} required>
+                <select value={studentId} onChange={(e) => handleStudentSelect(e.target.value)} required>
                   <option value="">{t('users_select_student')}</option>
-                  {availableStudents.map((s) => (<option key={s.id} value={s.id}>{s.full_name}  {s.barcode} ({s.group})</option>))}
+                  {availableStudents.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.full_name} · {s.barcode} ({s.group})
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
           )}
+
           <div className="form-actions">
             <button className="btn btn-primary" type="submit" disabled={creating}>
               {creating ? t('users_creating') : t('users_create_btn')}
@@ -156,7 +285,13 @@ function UsersPage() {
       </div>
 
       <div className="search-bar">
-        <input type="text" className="search-input" placeholder={t('users_search')} value={search} onChange={(e) => setSearch(e.target.value)} />
+        <input
+          type="text"
+          className="search-input"
+          placeholder={t('users_search')}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
       </div>
 
       <div className="table-container">

@@ -39,11 +39,13 @@ function NotificationsPage() {
 
   const markRead = async (id) => {
     await markNotificationRead(id);
+    window.dispatchEvent(new CustomEvent('notification_change'));
     load();
   };
 
   const markAll = async () => {
     await markAllNotificationsRead();
+    window.dispatchEvent(new CustomEvent('notification_change'));
     load();
   };
 
