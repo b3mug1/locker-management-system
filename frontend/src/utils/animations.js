@@ -6,11 +6,11 @@ import { animate, createTimeline, stagger } from 'animejs';
 export function animateStagger(targets, options = {}) {
   if (!targets) return;
   const {
-    translateY = [24, 0],
+    translateY = [20, 0],
     opacity = [0, 1],
-    scale = [0.96, 1],
-    delay = 60,
-    duration = 600,
+    scale = [0.97, 1],
+    delay = 40,
+    duration = 450,
     ease = 'outCubic',
     onComplete = null,
   } = options;
@@ -23,7 +23,21 @@ export function animateStagger(targets, options = {}) {
       delay: stagger(delay),
       duration,
       ease,
-      onComplete,
+      onComplete: (anim) => {
+        try {
+          const elements = typeof targets === 'string'
+            ? document.querySelectorAll(targets)
+            : (Array.isArray(targets) ? targets : [targets]);
+          elements.forEach(el => {
+            if (el && el.style) {
+              el.style.transform = '';
+            }
+          });
+        } catch {
+          // ignore
+        }
+        if (onComplete) onComplete(anim);
+      },
     });
   } catch (err) {
     console.debug('Animation stagger fallback', err);
