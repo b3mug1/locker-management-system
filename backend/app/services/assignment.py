@@ -1,3 +1,4 @@
+"""Assignment service handling locker allocations, releases, and student associations."""
 from __future__ import annotations
 
 from datetime import datetime, timezone

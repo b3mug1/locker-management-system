@@ -1,3 +1,4 @@
+"""Assignments router managing manual and automated locker assignments."""
 from __future__ import annotations
 
 import csv

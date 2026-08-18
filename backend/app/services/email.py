@@ -50,7 +50,7 @@ def send_credentials_email(to_email: str, password: str) -> bool:
       <p style="color:#374151">Hello,</p>
       <p style="color:#374151">
         An account has been created for you in the
-        <strong>AITU Locker Management System</strong>.
+        <strong>AITU Locker</strong>.
         Use the credentials below to sign in:
       </p>
       <div style="background:#f4f6f9;border:1px solid #e5e7eb;border-radius:8px;
@@ -66,7 +66,7 @@ def send_credentials_email(to_email: str, password: str) -> bool:
     """
 
     try:
-        _send(to_email, "AITU Locker System — Your Account Credentials", html)
+        _send(to_email, "AITU Locker — Your Account Credentials", html)
         print(f"[SMTP] Credentials sent to {to_email}")
         return True
     except Exception as exc:
@@ -88,7 +88,7 @@ def send_assignment_email(to_email: str, locker_number: str, floor: int) -> bool
       <p style="color:#374151">Hello,</p>
       <p style="color:#374151">
         A locker has been assigned to you in the
-        <strong>AITU Locker Management System</strong>:
+        <strong>AITU Locker</strong>:
       </p>
       <div style="background:#f4f6f9;border:1px solid #e5e7eb;border-radius:8px;
                   padding:1.25rem;margin:1.5rem 0">
@@ -124,7 +124,7 @@ def send_release_email(to_email: str, locker_number: str) -> bool:
       <p style="color:#374151">Hello,</p>
       <p style="color:#374151">
         Your locker <strong>{locker_number}</strong> has been released in the
-        <strong>AITU Locker Management System</strong>.
+        <strong>AITU Locker</strong>.
       </p>
       <p style="color:#6b7280;font-size:0.875rem">
         If you believe this is a mistake, please contact your administrator.

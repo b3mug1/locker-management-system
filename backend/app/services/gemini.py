@@ -29,7 +29,7 @@ def _get_client():
 
 def _get_model_name() -> str:
     from app.core.config import settings
-    return settings.GEMINI_MODEL or "gemini-3.5-flash-lite"
+    return settings.GEMINI_MODEL or "gemini-2.5-flash"
 
 
 def _clean_and_parse_json(raw: str) -> dict[str, Any] | None:
@@ -187,10 +187,9 @@ Please evaluate the allocation distribution and return your strategic plan in JS
     gemini_meta = None
     candidate_models = [
         settings.GEMINI_MODEL,
-        "gemini-3.5-flash-lite",
-        "gemini-3.1-flash-lite",
-        "gemini-3.5-flash",
-        "gemini-3.6-flash",
+        "gemini-2.5-flash",
+        "gemini-2.0-flash",
+        "gemini-1.5-flash",
     ]
     seen = set()
     models_to_try = [m for m in candidate_models if m and not (m in seen or seen.add(m))]
@@ -206,8 +205,8 @@ Please evaluate the allocation distribution and return your strategic plan in JS
                     model=model_name,
                     contents=[strategy_prompt + "\n\n" + user_strategy_prompt],
                     config=types.GenerateContentConfig(
-                        temperature=0.3,
-                        max_output_tokens=4096,
+                        temperature=0.2,
+                        max_output_tokens=1024,
                         response_mime_type="application/json",
                     ),
                 )
