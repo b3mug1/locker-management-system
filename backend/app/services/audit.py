@@ -37,7 +37,7 @@ class AuditLogService:
             await self.db.refresh(log)
         else:
             await self.db.flush()
-        return 
+        return log
 
     async def get_all(self, skip: int = 0, limit: int = 200) -> list[AuditLog]:
         result = await self.db.execute(
