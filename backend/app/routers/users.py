@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_admin, get_db
@@ -14,11 +14,13 @@ router = APIRouter(prefix="/users", tags=["Users"])
 
 @router.get("/", response_model=list[UserRead])
 async def list_users(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
     db: AsyncSession = Depends(get_db),
     _admin: User = Depends(get_current_admin),
 ):
     service = UserService(db)
-    users = await service.get_all()
+    users = await service.get_all(skip=skip, limit=limit)
     result = []
     for u in users:
         result.append(UserRead(

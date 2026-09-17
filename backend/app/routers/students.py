@@ -57,7 +57,7 @@ async def create_student(
     current_admin: User = Depends(get_current_admin),
 ):
     service = StudentService(db)
-    student = await service.create(data)
+    student = await service.create(data, commit=False)
     await AuditLogService(db).create(
         actor_id=current_admin.id,
         action="create",
@@ -88,7 +88,7 @@ async def update_student(
             "course": existing.course,
             "inclusive_status": existing.inclusive_status,
         }
-    student = await service.update(student_id, data)
+    student = await service.update(student_id, data, commit=False)
     if not student:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student not found")
     await AuditLogService(db).create(
@@ -112,7 +112,7 @@ async def delete_student(
 ):
     service = StudentService(db)
     existing = await service.get_by_id(student_id)
-    deleted = await service.delete(student_id)
+    deleted = await service.delete(student_id, commit=False)
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student not found")
     await AuditLogService(db).create(
@@ -146,6 +146,7 @@ async def import_students_csv(
     created = 0
     skipped = 0
     errors: list[str] = []
+    seen_barcodes: set[str] = set()
     service = StudentService(db)
 
     for i, row in enumerate(reader, start=2):
@@ -158,6 +159,11 @@ async def import_students_csv(
                 errors.append(f"Row {i}: missing required field (full_name, barcode, group)")
                 skipped += 1
                 continue
+            if barcode in seen_barcodes:
+                errors.append(f"Row {i}: duplicate barcode '{barcode}' in file")
+                skipped += 1
+                continue
+            seen_barcodes.add(barcode)
 
             data = StudentCreate(
                 full_name=full_name,
@@ -165,13 +171,14 @@ async def import_students_csv(
                 barcode=barcode,
                 course=int(row.get("course", 1)),
             )
-            await service.create(data)
+            await service.create(data, commit=False, flush=False)
             created += 1
         except Exception as e:
             errors.append(f"Row {i}: {str(e)}")
             skipped += 1
 
     if created > 0:
+        await db.commit()
         await AuditLogService(db).create(
             actor_id=current_admin.id,
             action="import",

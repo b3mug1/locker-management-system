@@ -39,11 +39,13 @@ async def list_assignments(
 
 @router.get("/my", response_model=list[AssignmentRead])
 async def my_assignments(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     service = AssignmentService(db)
-    return await service.get_by_user_email(current_user.email)
+    return await service.get_by_user_email(current_user.email, skip=skip, limit=limit)
 
 
 @router.get("/my-dashboard")
@@ -82,6 +84,19 @@ async def my_dashboard(
         )
         all_assignments = list(result.scalars().all())
 
+        active_locker_ids = {a.locker_id for a in all_assignments if not a.released_at}
+        occupancy_by_locker: dict[int, int] = {}
+        if active_locker_ids:
+            occupancy_result = await db.execute(
+                select(Assignment.locker_id, func.count(Assignment.id))
+                .where(
+                    Assignment.locker_id.in_(active_locker_ids),
+                    Assignment.released_at.is_(None),
+                )
+                .group_by(Assignment.locker_id)
+            )
+            occupancy_by_locker = dict(occupancy_result.all())
+
         for a in all_assignments:
             entry = {
                 "id": a.id,
@@ -95,21 +110,13 @@ async def my_dashboard(
             assignments_data.append(entry)
 
             if not a.released_at and a.locker:
-                # Get occupied count for this locker
-                occ_result = await db.execute(
-                    select(func.count(Assignment.id)).where(
-                        Assignment.locker_id == a.locker_id,
-                        Assignment.released_at.is_(None),
-                    )
-                )
-                occupied = occ_result.scalar_one()
                 active_locker = {
                     "number": a.locker.number,
                     "floor": a.locker.floor,
                     "size": a.locker.size,
                     "access_type": a.locker.access_type,
                     "capacity": a.locker.capacity,
-                    "occupied": occupied,
+                    "occupied": occupancy_by_locker.get(a.locker_id, 0),
                     "assigned_at": a.assigned_at.isoformat() if a.assigned_at else None,
                 }
 
@@ -145,7 +152,7 @@ async def assign_locker(
     current_admin: User = Depends(get_current_admin),
 ):
     service = AssignmentService(db)
-    assignment = await service.assign(data)
+    assignment = await service.assign(data, commit=False)
     await AuditLogService(db).create(
         actor_id=current_admin.id,
         action="assign",
@@ -185,7 +192,7 @@ async def release_locker(
     current_admin: User = Depends(get_current_admin),
 ):
     service = AssignmentService(db)
-    assignment = await service.release(assignment_id)
+    assignment = await service.release(assignment_id, commit=False)
     if not assignment:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -235,7 +242,7 @@ async def release_all_lockers(
         .options(selectinload(Assignment.locker))
         .where(Assignment.released_at.is_(None))
     )).scalars().all())
-    released_count = await service.release_all()
+    released_count = await service.release_all(active_assignments)
     student_ids = [assignment.student_id for assignment in active_assignments]
     users_by_student_id = {}
     if student_ids:

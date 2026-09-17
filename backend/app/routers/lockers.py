@@ -73,7 +73,7 @@ async def create_locker(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Locker number already exists",
         )
-    locker = await service.create(data)
+    locker = await service.create(data, commit=False)
     await AuditLogService(db).create(
         actor_id=current_admin.id,
         action="create",
@@ -114,7 +114,7 @@ async def update_locker(
             "floor": existing.floor,
             "status": existing.status,
         }
-    locker = await service.update(locker_id, data)
+    locker = await service.update(locker_id, data, commit=False)
     if not locker:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Locker not found")
     await AuditLogService(db).create(
@@ -148,7 +148,7 @@ async def delete_locker(
 ):
     service = LockerService(db)
     existing = await service.get_by_id(locker_id)
-    deleted = await service.delete(locker_id)
+    deleted = await service.delete(locker_id, commit=False)
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Locker not found")
     await AuditLogService(db).create(
@@ -183,6 +183,7 @@ async def import_lockers_csv(
     created = 0
     skipped = 0
     errors: list[str] = []
+    seen_numbers: set[str] = set()
     service = LockerService(db)
 
     for i, row in enumerate(reader, start=2):
@@ -198,6 +199,11 @@ async def import_lockers_csv(
                 errors.append(f"Row {i}: locker '{number}' already exists")
                 skipped += 1
                 continue
+            if number in seen_numbers:
+                errors.append(f"Row {i}: duplicate locker '{number}' in file")
+                skipped += 1
+                continue
+            seen_numbers.add(number)
 
             data = LockerCreate(
                 number=number,
@@ -207,13 +213,14 @@ async def import_lockers_csv(
                 floor=int(row.get("floor", 1)),
                 status=row.get("status", "active").strip().lower(),
             )
-            await service.create(data)
+            await service.create(data, commit=False, flush=False)
             created += 1
         except Exception as e:
             errors.append(f"Row {i}: {str(e)}")
             skipped += 1
 
     if created > 0:
+        await db.commit()
         await AuditLogService(db).create(
             actor_id=current_admin.id,
             action="import",

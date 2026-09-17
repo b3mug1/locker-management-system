@@ -20,8 +20,10 @@ class UserService:
         result = await self.db.execute(select(User).where(User.email == email))
         return result.scalar_one_or_none()
 
-    async def get_all(self) -> list[User]:
-        result = await self.db.execute(select(User).order_by(User.id))
+    async def get_all(self, skip: int = 0, limit: int = 100) -> list[User]:
+        result = await self.db.execute(
+            select(User).order_by(User.id).offset(skip).limit(limit)
+        )
         return list(result.scalars().all())
 
     async def create(self, data: UserCreate) -> User:

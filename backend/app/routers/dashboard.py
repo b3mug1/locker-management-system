@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func, select, case, literal_column, extract
+from sqlalchemy import and_, func, select, case, literal_column, extract
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_admin, get_db
@@ -58,6 +58,15 @@ async def dashboard_stats(
             Locker.floor,
             func.count(Locker.id).label("total"),
             func.coalesce(func.sum(Locker.capacity), 0).label("capacity"),
+            func.count(Assignment.id).label("occupied"),
+        )
+        .select_from(Locker)
+        .outerjoin(
+            Assignment,
+            and_(
+                Assignment.locker_id == Locker.id,
+                Assignment.released_at.is_(None),
+            ),
         )
         .where(Locker.status == "active")
         .group_by(Locker.floor)
@@ -66,20 +75,12 @@ async def dashboard_stats(
 
     floor_stats = []
     for row in floor_rows:
-        floor_active = (await db.execute(
-            select(func.count(Assignment.id)).where(
-                Assignment.released_at.is_(None),
-                Assignment.locker_id.in_(
-                    select(Locker.id).where(Locker.floor == row.floor, Locker.status == "active")
-                ),
-            )
-        )).scalar_one()
         floor_stats.append({
             "floor": row.floor,
             "lockers": row.total,
             "capacity": row.capacity,
-            "occupied": floor_active,
-            "available": row.capacity - floor_active,
+            "occupied": row.occupied,
+            "available": row.capacity - row.occupied,
         })
 
     # Recent assignments (last 5)
@@ -152,22 +153,36 @@ async def dashboard_analytics(
     )).scalar_one()
 
     # All assignments that were active at some point during the period
-    all_assignments = (await db.execute(
-        select(Assignment).where(
+    assignment_rows = (await db.execute(
+        select(Assignment.assigned_at, Assignment.released_at).where(
             Assignment.assigned_at <= now,
             (Assignment.released_at.is_(None)) | (Assignment.released_at >= start),
         )
-    )).scalars().all()
+    )).all()
 
-    # Build time series
+    # Build the trend from a single pass over assignment events instead of
+    # scanning every assignment for every point in the chart.
+    active_at_start = sum(
+        1
+        for row in assignment_rows
+        if row.assigned_at <= start and (row.released_at is None or row.released_at > start)
+    )
+    events = []
+    for row in assignment_rows:
+        if start < row.assigned_at <= now:
+            events.append((row.assigned_at, 1))
+        if row.released_at is not None and start < row.released_at <= now:
+            events.append((row.released_at, -1))
+    events.sort(key=lambda event: event[0])
+
     occupancy_trend = []
     current = start
+    active_at_point = active_at_start
+    event_index = 0
     while current <= now:
-        # Count how many were active at this point in time
-        active_at_point = sum(
-            1 for a in all_assignments
-            if a.assigned_at <= current and (a.released_at is None or a.released_at > current)
-        )
+        while event_index < len(events) and events[event_index][0] <= current:
+            active_at_point += events[event_index][1]
+            event_index += 1
         occupancy_trend.append({
             "date": current.strftime("%Y-%m-%d"),
             "occupied": active_at_point,
@@ -206,27 +221,27 @@ async def dashboard_analytics(
             Locker.size,
             func.count(Locker.id).label("locker_count"),
             func.coalesce(func.sum(Locker.capacity), 0).label("total_capacity"),
+            func.count(Assignment.id).label("occupied"),
+        )
+        .select_from(Locker)
+        .outerjoin(
+            Assignment,
+            and_(
+                Assignment.locker_id == Locker.id,
+                Assignment.released_at.is_(None),
+            ),
         )
         .where(Locker.status == "active")
         .group_by(Locker.size)
     )
     size_stats = []
     for r in size_stats_result.all():
-        # Count active assignments for this size
-        occ = (await db.execute(
-            select(func.count(Assignment.id)).where(
-                Assignment.released_at.is_(None),
-                Assignment.locker_id.in_(
-                    select(Locker.id).where(Locker.size == r.size, Locker.status == "active")
-                ),
-            )
-        )).scalar_one()
         size_stats.append({
             "size": r.size,
             "lockers": r.locker_count,
             "capacity": r.total_capacity,
-            "occupied": occ,
-            "rate": round(occ / r.total_capacity * 100, 1) if r.total_capacity > 0 else 0,
+            "occupied": r.occupied,
+            "rate": round(r.occupied / r.total_capacity * 100, 1) if r.total_capacity > 0 else 0,
         })
 
     # Busiest floors by current occupancy rate
@@ -235,6 +250,15 @@ async def dashboard_analytics(
             Locker.floor,
             func.count(Locker.id).label("lockers"),
             func.coalesce(func.sum(Locker.capacity), 0).label("capacity"),
+            func.count(Assignment.id).label("occupied"),
+        )
+        .select_from(Locker)
+        .outerjoin(
+            Assignment,
+            and_(
+                Assignment.locker_id == Locker.id,
+                Assignment.released_at.is_(None),
+            ),
         )
         .where(Locker.status == "active")
         .group_by(Locker.floor)
@@ -242,20 +266,12 @@ async def dashboard_analytics(
     )).all()
     busiest_floors = []
     for r in floor_rows:
-        occupied = (await db.execute(
-            select(func.count(Assignment.id)).where(
-                Assignment.released_at.is_(None),
-                Assignment.locker_id.in_(
-                    select(Locker.id).where(Locker.floor == r.floor, Locker.status == "active")
-                ),
-            )
-        )).scalar_one()
         busiest_floors.append({
             "floor": r.floor,
             "lockers": r.lockers,
             "capacity": r.capacity,
-            "occupied": occupied,
-            "rate": round(occupied / r.capacity * 100, 1) if r.capacity > 0 else 0,
+            "occupied": r.occupied,
+            "rate": round(r.occupied / r.capacity * 100, 1) if r.capacity > 0 else 0,
         })
     busiest_floors.sort(key=lambda item: item["rate"], reverse=True)
 
@@ -274,14 +290,11 @@ async def dashboard_analytics(
     students_without_locker = max(0, students_count - assigned_students)
     priority_share = round(priority_students / students_count * 100, 1) if students_count > 0 else 0
 
-    duration_rows = (await db.execute(
-        select(Assignment.assigned_at, Assignment.released_at).where(Assignment.released_at.isnot(None))
-    )).all()
-    if duration_rows:
-        avg_seconds = sum((r.released_at - r.assigned_at).total_seconds() for r in duration_rows) / len(duration_rows)
-        average_duration_days = round(avg_seconds / 86400, 1)
-    else:
-        average_duration_days = 0
+    average_duration_seconds = (await db.execute(
+        select(func.avg(extract("epoch", Assignment.released_at - Assignment.assigned_at)))
+        .where(Assignment.released_at.isnot(None))
+    )).scalar_one()
+    average_duration_days = round(float(average_duration_seconds) / 86400, 1) if average_duration_seconds else 0
 
     # Peak usage: top 5 busiest days
     peak_result = await db.execute(

@@ -90,6 +90,8 @@ async def list_technicians(
 @router.get("/my-tasks", response_model=list[LockerIncidentRead])
 async def list_my_technician_tasks(
     status_filter: str | None = Query(None, alias="status"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -97,7 +99,7 @@ async def list_my_technician_tasks(
     query = select(LockerIncident).where(LockerIncident.assigned_technician_id == current_user.id)
     if status_filter:
         query = query.where(LockerIncident.status == status_filter)
-    query = query.order_by(LockerIncident.id.desc())
+    query = query.order_by(LockerIncident.id.desc()).offset(skip).limit(limit)
     incidents = list((await db.execute(query)).scalars().all())
     return [_incident_read(i) for i in incidents]
 

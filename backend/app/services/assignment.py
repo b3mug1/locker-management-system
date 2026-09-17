@@ -59,7 +59,7 @@ class AssignmentService:
         )
         return list(result.scalars().all())
 
-    async def get_by_user_email(self, email: str) -> list[dict]:
+    async def get_by_user_email(self, email: str, skip: int = 0, limit: int = 100) -> list[dict]:
         """Get assignments for the student linked to this user account."""
         from app.models.user import User
         user_result = await self.db.execute(
@@ -73,6 +73,8 @@ class AssignmentService:
             select(Assignment)
             .where(Assignment.student_id == user.student_id)
             .order_by(Assignment.id.desc())
+            .offset(skip)
+            .limit(limit)
         )
         assignments = list(result.scalars().all())
         data = []
@@ -88,7 +90,7 @@ class AssignmentService:
             })
         return data
 
-    async def assign(self, data: AssignmentCreate) -> Assignment:
+    async def assign(self, data: AssignmentCreate, *, commit: bool = True) -> Assignment:
         # Verify student exists
         student_result = await self.db.execute(
             select(Student).where(Student.id == data.student_id)
@@ -102,7 +104,9 @@ class AssignmentService:
 
         # Verify locker exists
         locker_result = await self.db.execute(
-            select(Locker).where(Locker.id == data.locker_id)
+            select(Locker)
+            .where(Locker.id == data.locker_id)
+            .with_for_update()
         )
         locker = locker_result.scalar_one_or_none()
         if not locker:
@@ -165,11 +169,14 @@ class AssignmentService:
             locker_id=data.locker_id,
         )
         self.db.add(assignment)
-        await self.db.commit()
-        await self.db.refresh(assignment)
+        if commit:
+            await self.db.commit()
+            await self.db.refresh(assignment)
+        else:
+            await self.db.flush()
         return assignment
 
-    async def release(self, assignment_id: int) -> Assignment | None:
+    async def release(self, assignment_id: int, *, commit: bool = True) -> Assignment | None:
         assignment = await self.get_by_id(assignment_id)
         if not assignment:
             return None
@@ -179,8 +186,11 @@ class AssignmentService:
                 detail="Assignment already released",
             )
         assignment.released_at = datetime.now(timezone.utc)
-        await self.db.commit()
-        await self.db.refresh(assignment)
+        if commit:
+            await self.db.commit()
+            await self.db.refresh(assignment)
+        else:
+            await self.db.flush()
         return assignment
 
     async def count_active(self) -> int:
@@ -189,12 +199,13 @@ class AssignmentService:
         )
         return result.scalar_one()
 
-    async def release_all(self) -> int:
+    async def release_all(self, active_assignments: list[Assignment] | None = None) -> int:
         """Release all active assignments. Returns the number of released assignments."""
-        result = await self.db.execute(
-            select(Assignment).where(Assignment.released_at.is_(None))
-        )
-        active_assignments = list(result.scalars().all())
+        if active_assignments is None:
+            result = await self.db.execute(
+                select(Assignment).where(Assignment.released_at.is_(None))
+            )
+            active_assignments = list(result.scalars().all())
         now = datetime.now(timezone.utc)
         for assignment in active_assignments:
             assignment.released_at = now
