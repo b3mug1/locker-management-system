@@ -20,6 +20,7 @@ const translations = {
     login_btn: 'Login',
     login_loading: 'Logging in...',
     login_failed: 'Login failed',
+    login_connection_failed: 'The server is unavailable. Start the application services and try again.',
 
     // Dashboard
     dash_title: 'Dashboard',
@@ -574,6 +575,7 @@ const translations = {
     login_btn: 'Вход',
     login_loading: 'Вход...',
     login_failed: 'Ошибка входа',
+    login_connection_failed: 'Сервер недоступен. Запустите сервисы приложения и повторите попытку.',
 
     // Dashboard
     dash_title: 'Главная',

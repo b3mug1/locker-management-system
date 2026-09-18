@@ -37,7 +37,7 @@ function LoginPage() {
       loginUser(data);
       navigate('/');
     } catch (err) {
-      const detail = err.response?.data?.detail || t('login_failed');
+      const detail = err.response?.data?.detail || (!err.response ? t('login_connection_failed') : t('login_failed'));
       setError(detail);
     } finally {
       setLoading(false);
