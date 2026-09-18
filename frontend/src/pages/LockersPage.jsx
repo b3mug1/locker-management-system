@@ -20,8 +20,11 @@ function LockersPage() {
   const modalRef = useRef(null);
   const overlayRef = useRef(null);
   const fileInputRef = useRef(null);
+  const fetchSequenceRef = useRef(0);
   const [confirmModal, setConfirmModal] = useState({ open: false, title: '', message: '', onConfirm: null });
   const [importStatus, setImportStatus] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   const [filterFloor, setFilterFloor] = useState('');
   const [filterSize, setFilterSize] = useState('');
@@ -86,9 +89,15 @@ function LockersPage() {
   const handleAccessChange = (at) => { setForm({ ...form, access_type: at, capacity: LOCKER_RULES[form.size][at] }); };
 
   const fetchLockers = useCallback(async () => {
-    try { const res = await getLockers(0, 10000); setLockers(res.data); }
-    catch { setError(t('lockers_failed_load')); }
-    finally { setLoading(false); }
+    const sequence = ++fetchSequenceRef.current;
+    try {
+      const res = await getLockers(0, 10000);
+      if (sequence === fetchSequenceRef.current) setLockers(res.data);
+    } catch {
+      if (sequence === fetchSequenceRef.current) setError(t('lockers_failed_load'));
+    } finally {
+      if (sequence === fetchSequenceRef.current) setLoading(false);
+    }
   }, [t]);
 
   useEffect(() => { fetchLockers(); }, [fetchLockers]);
@@ -96,11 +105,14 @@ function LockersPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault(); setError('');
+    if (submitting) return;
+    setSubmitting(true);
     try {
       const payload = { ...form, capacity: Number(form.capacity), floor: Number(form.floor) };
       if (editingId) await updateLocker(editingId, payload); else await createLocker(payload);
       setForm({ number: '', size: 'medium', access_type: 'key', capacity: 2, floor: 1, status: 'active' }); setShowForm(false); setEditingId(null); fetchLockers();
     } catch (err) { setError(err.response?.data?.detail || t('lockers_op_failed')); }
+    finally { setSubmitting(false); }
   };
 
   const handleEdit = (l) => {
@@ -142,9 +154,12 @@ function LockersPage() {
 
   const handleCSVImport = async (e) => {
     const file = e.target.files[0]; if (!file) return;
+    if (importing) return;
     setImportStatus(null); setError('');
+    setImporting(true);
     try { const res = await importLockersCSV(file); setImportStatus(res.data); fetchLockers(); }
     catch (err) { setError(err.response?.data?.detail || t('lockers_csv_failed')); }
+    finally { setImporting(false); }
     e.target.value = '';
   };
 
@@ -167,7 +182,7 @@ function LockersPage() {
               {t('lockers_delete_selected', { count: selectedIds.size })}
             </button>
           )}
-          <button className="btn btn-outline" onClick={() => fileInputRef.current?.click()}>{t('lockers_import_csv')}</button>
+          <button className="btn btn-outline" onClick={() => fileInputRef.current?.click()} disabled={importing}>{t('lockers_import_csv')}</button>
           <input type="file" accept=".csv" ref={fileInputRef} style={{ display: 'none' }} onChange={handleCSVImport} />
           <button className="btn btn-primary" onClick={() => { setEditingId(null); setForm({ number: '', size: 'medium', access_type: 'key', capacity: 2, floor: 1, status: 'active' }); setShowForm(true); }}>
             + {t('lockers_add')}
@@ -234,7 +249,7 @@ function LockersPage() {
               </div>
               <div className="modal-actions">
                 <button className="btn btn-outline" type="button" onClick={handleCancel}>{t('btn_cancel')}</button>
-                <button className="btn btn-primary" type="submit">{editingId ? t('btn_update') : t('btn_create')}</button>
+                <button className="btn btn-primary" type="submit" disabled={submitting}>{editingId ? t('btn_update') : t('btn_create')}</button>
               </div>
             </form>
           </div>

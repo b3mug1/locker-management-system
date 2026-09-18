@@ -18,11 +18,15 @@ function AuditLogPage() {
   const { t, lang } = useLanguage();
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [search, setSearch] = useState('');
 
   useEffect(() => {
-    getAuditLogs().then(res => setLogs(res.data)).finally(() => setLoading(false));
-  }, []);
+    getAuditLogs()
+      .then(res => setLogs(res.data))
+      .catch(() => setError(t('audit_failed_load')))
+      .finally(() => setLoading(false));
+  }, [t]);
 
   const filtered = logs.filter(log => {
     const q = search.toLowerCase();
@@ -42,6 +46,7 @@ function AuditLogPage() {
   return (
     <div className="page">
       <div className="page-header"><h1>{t('audit_title')}</h1></div>
+      {error && <div className="alert alert-error" role="alert">{error}</div>}
       <div className="filter-bar">
         <input className="search-input" value={search} onChange={e => setSearch(e.target.value)} placeholder={t('audit_search')} />
       </div>

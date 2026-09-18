@@ -20,6 +20,7 @@ function AssignmentsPage() {
   const [success, setSuccess] = useState('');
   const [confirmModal, setConfirmModal] = useState({ open: false, title: '', message: '', variant: 'warning', confirmText: t('btn_confirm'), onConfirm: null });
   const csvInputRef = useRef(null);
+  const fetchSequenceRef = useRef(0);
   const [importStatus, setImportStatus] = useState(null);
 
   // Gemini allocation states
@@ -114,19 +115,21 @@ function AssignmentsPage() {
   };
 
   const fetchAll = useCallback(async () => {
+    const sequence = ++fetchSequenceRef.current;
     try {
       const [aRes, sRes, lRes] = await Promise.all([
         getAssignments(0, 10000),
         getStudents(0, 10000),
         getLockers(0, 10000)
       ]);
+      if (sequence !== fetchSequenceRef.current) return;
       setAssignments(aRes.data);
       setStudents(sRes.data);
       setLockers(lRes.data);
     } catch {
-      setError(t('assign_failed_load'));
+      if (sequence === fetchSequenceRef.current) setError(t('assign_failed_load'));
     } finally {
-      setLoading(false);
+      if (sequence === fetchSequenceRef.current) setLoading(false);
     }
   }, [t]);
 
@@ -703,19 +706,19 @@ function AssignmentsPage() {
         <table>
           <thead>
             <tr>
-              <th onClick={() => handleSort('student_name')} style={{ cursor: 'pointer' }}>
+              <th role="button" tabIndex={0} aria-sort={sortCol === 'student_name' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleSort('student_name')} onClick={() => handleSort('student_name')} style={{ cursor: 'pointer' }}>
                 {t('assign_student')}{sortIcon('student_name')}
               </th>
-              <th onClick={() => handleSort('locker_number')} style={{ cursor: 'pointer' }}>
+              <th role="button" tabIndex={0} aria-sort={sortCol === 'locker_number' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleSort('locker_number')} onClick={() => handleSort('locker_number')} style={{ cursor: 'pointer' }}>
                 {t('assign_locker')}{sortIcon('locker_number')}
               </th>
-              <th onClick={() => handleSort('assigned_at')} style={{ cursor: 'pointer' }}>
+              <th role="button" tabIndex={0} aria-sort={sortCol === 'assigned_at' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleSort('assigned_at')} onClick={() => handleSort('assigned_at')} style={{ cursor: 'pointer' }}>
                 {t('assign_assigned_at')}{sortIcon('assigned_at')}
               </th>
-              <th onClick={() => handleSort('released_at')} style={{ cursor: 'pointer' }}>
+              <th role="button" tabIndex={0} aria-sort={sortCol === 'released_at' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleSort('released_at')} onClick={() => handleSort('released_at')} style={{ cursor: 'pointer' }}>
                 {t('assign_released_at')}{sortIcon('released_at')}
               </th>
-              <th onClick={() => handleSort('status')} style={{ cursor: 'pointer' }}>
+              <th role="button" tabIndex={0} aria-sort={sortCol === 'status' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleSort('status')} onClick={() => handleSort('status')} style={{ cursor: 'pointer' }}>
                 {t('assign_status')}{sortIcon('status')}
               </th>
               <th>{t('assign_actions')}</th>
