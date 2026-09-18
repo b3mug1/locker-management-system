@@ -9,10 +9,13 @@ const WS_URL = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${wind
  */
 export function useWebSocket(handlers) {
   const wsRef = useRef(null);
+  const reconnectTimerRef = useRef(null);
+  const mountedRef = useRef(false);
   const handlersRef = useRef(handlers);
   handlersRef.current = handlers;
 
   const connect = useCallback(() => {
+    if (!mountedRef.current) return;
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
     const ws = new WebSocket(WS_URL);
@@ -29,8 +32,11 @@ export function useWebSocket(handlers) {
     };
 
     ws.onclose = () => {
-      // Reconnect after 3 seconds
-      setTimeout(() => connect(), 3000);
+      if (!mountedRef.current) return;
+      reconnectTimerRef.current = setTimeout(() => {
+        reconnectTimerRef.current = null;
+        connect();
+      }, 3000);
     };
 
     ws.onerror = () => {
@@ -39,8 +45,14 @@ export function useWebSocket(handlers) {
   }, []);
 
   useEffect(() => {
+    mountedRef.current = true;
     connect();
     return () => {
+      mountedRef.current = false;
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
       if (wsRef.current) {
         wsRef.current.onclose = null; // prevent reconnect on intentional close
         wsRef.current.close();

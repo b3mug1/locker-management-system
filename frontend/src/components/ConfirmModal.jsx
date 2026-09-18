@@ -1,18 +1,23 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useId, useRef } from 'react';
 import { animateModalOpen } from '../utils/animations';
 
 function ConfirmModal({ open, title, message, confirmText = 'Confirm', cancelText = 'Cancel', variant = 'danger', onConfirm, onCancel }) {
   const confirmRef = useRef(null);
   const modalRef = useRef(null);
   const overlayRef = useRef(null);
+  const previousFocusRef = useRef(null);
+  const titleId = useId();
+  const messageId = useId();
 
   useEffect(() => {
     if (open) {
+      previousFocusRef.current = document.activeElement;
       confirmRef.current?.focus();
       document.body.style.overflow = 'hidden';
       animateModalOpen(modalRef.current, overlayRef.current);
     } else {
       document.body.style.overflow = '';
+      previousFocusRef.current?.focus?.();
     }
     return () => { document.body.style.overflow = ''; };
   }, [open]);
@@ -21,6 +26,18 @@ function ConfirmModal({ open, title, message, confirmText = 'Confirm', cancelTex
     if (!open) return;
     const handleKey = (e) => {
       if (e.key === 'Escape') onCancel();
+      if (e.key !== 'Tab' || !modalRef.current) return;
+      const focusable = modalRef.current.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
@@ -30,7 +47,7 @@ function ConfirmModal({ open, title, message, confirmText = 'Confirm', cancelTex
 
   return (
     <div className="confirm-overlay" ref={overlayRef} onClick={onCancel}>
-      <div className="confirm-modal" ref={modalRef} onClick={(e) => e.stopPropagation()}>
+      <div className="confirm-modal" ref={modalRef} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={messageId} onClick={(e) => e.stopPropagation()}>
         <div className={`confirm-icon confirm-icon-${variant}`}>
           {variant === 'danger' ? (
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -46,8 +63,8 @@ function ConfirmModal({ open, title, message, confirmText = 'Confirm', cancelTex
             </svg>
           )}
         </div>
-        <h3 className="confirm-title">{title}</h3>
-        <p className="confirm-message">{message}</p>
+        <h3 className="confirm-title" id={titleId}>{title}</h3>
+        <p className="confirm-message" id={messageId}>{message}</p>
         <div className="confirm-actions">
           <button className="btn btn-outline confirm-cancel-btn" onClick={onCancel}>
             {cancelText}
