@@ -4,11 +4,14 @@ import csv
 import io
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, status
+from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_admin, get_db
 from app.core.websocket import manager
 from app.models.user import User
+from app.models.student import Student
 from app.schemas.student import StudentCreate, StudentRead, StudentUpdate
 from app.services.audit import AuditLogService
 from app.services.student import StudentService
@@ -148,6 +151,8 @@ async def import_students_csv(
     errors: list[str] = []
     seen_barcodes: set[str] = set()
     service = StudentService(db)
+    existing_result = await db.execute(select(Student.barcode))
+    existing_barcodes = {barcode for (barcode,) in existing_result}
 
     for i, row in enumerate(reader, start=2):
         try:
@@ -159,8 +164,8 @@ async def import_students_csv(
                 errors.append(f"Row {i}: missing required field (full_name, barcode, group)")
                 skipped += 1
                 continue
-            if barcode in seen_barcodes:
-                errors.append(f"Row {i}: duplicate barcode '{barcode}' in file")
+            if barcode in seen_barcodes or barcode in existing_barcodes:
+                errors.append(f"Row {i}: barcode '{barcode}' already exists")
                 skipped += 1
                 continue
             seen_barcodes.add(barcode)
@@ -173,12 +178,20 @@ async def import_students_csv(
             )
             await service.create(data, commit=False, flush=False)
             created += 1
-        except Exception as e:
+        except SQLAlchemyError as e:
+            await db.rollback()
+            errors.append(f"Row {i}: database error: {e}")
+            skipped += 1
+        except (ValueError, TypeError) as e:
             errors.append(f"Row {i}: {str(e)}")
             skipped += 1
 
     if created > 0:
-        await db.commit()
+        try:
+            await db.commit()
+        except SQLAlchemyError as e:
+            await db.rollback()
+            raise HTTPException(status_code=400, detail=f"Student import failed: {e}") from e
         await AuditLogService(db).create(
             actor_id=current_admin.id,
             action="import",

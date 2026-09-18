@@ -4,7 +4,7 @@ from __future__ import annotations
 import csv
 import io
 
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, UploadFile, File, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -45,7 +45,7 @@ async def my_assignments(
     current_user: User = Depends(get_current_user),
 ):
     service = AssignmentService(db)
-    return await service.get_by_user_email(current_user.email, skip=skip, limit=limit)
+    return await service.get_by_student_id(current_user.student_id, skip=skip, limit=limit)
 
 
 @router.get("/my-dashboard")
@@ -148,6 +148,7 @@ async def active_count(
 @router.post("/", response_model=AssignmentRead, status_code=status.HTTP_201_CREATED)
 async def assign_locker(
     data: AssignmentCreate,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_admin: User = Depends(get_current_admin),
 ):
@@ -159,6 +160,7 @@ async def assign_locker(
         entity_type="assignment",
         entity_id=assignment.id,
         summary=f"Assigned locker {assignment.locker.number if assignment.locker else assignment.locker_id} to {assignment.student.full_name if assignment.student else assignment.student_id}",
+        commit=False,
     )
     student_user = (await db.execute(select(User).where(User.student_id == assignment.student_id))).scalar_one_or_none()
     if student_user:
@@ -167,11 +169,15 @@ async def assign_locker(
             title="Locker assigned",
             message=f"Locker {assignment.locker.number} on floor {assignment.locker.floor} has been assigned to you.",
             type="success",
+            commit=False,
         )
-        try:
-            send_assignment_email(student_user.email, assignment.locker.number, assignment.locker.floor)
-        except Exception:
-            pass
+        background_tasks.add_task(
+            send_assignment_email,
+            student_user.email,
+            assignment.locker.number,
+            assignment.locker.floor,
+        )
+    await db.commit()
     await manager.broadcast("assignment_change")
     await manager.broadcast("locker_change")
     return AssignmentRead(
@@ -188,6 +194,7 @@ async def assign_locker(
 @router.post("/{assignment_id}/release", response_model=AssignmentRead)
 async def release_locker(
     assignment_id: int,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_admin: User = Depends(get_current_admin),
 ):
@@ -204,6 +211,7 @@ async def release_locker(
         entity_type="assignment",
         entity_id=assignment.id,
         summary=f"Released locker {assignment.locker.number if assignment.locker else assignment.locker_id} from {assignment.student.full_name if assignment.student else assignment.student_id}",
+        commit=False,
     )
     student_user = (await db.execute(select(User).where(User.student_id == assignment.student_id))).scalar_one_or_none()
     if student_user:
@@ -212,11 +220,14 @@ async def release_locker(
             title="Locker released",
             message=f"Locker {assignment.locker.number} has been released.",
             type="warning",
+            commit=False,
         )
-        try:
-            send_release_email(student_user.email, assignment.locker.number)
-        except Exception:
-            pass
+        background_tasks.add_task(
+            send_release_email,
+            student_user.email,
+            assignment.locker.number,
+        )
+    await db.commit()
     await manager.broadcast("assignment_change")
     await manager.broadcast("locker_change")
     return AssignmentRead(
@@ -232,6 +243,7 @@ async def release_locker(
 
 @router.post("/release-all")
 async def release_all_lockers(
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_admin: User = Depends(get_current_admin),
 ):
@@ -242,7 +254,7 @@ async def release_all_lockers(
         .options(selectinload(Assignment.locker))
         .where(Assignment.released_at.is_(None))
     )).scalars().all())
-    released_count = await service.release_all(active_assignments)
+    released_count = await service.release_all()
     student_ids = [assignment.student_id for assignment in active_assignments]
     users_by_student_id = {}
     if student_ids:
@@ -260,21 +272,23 @@ async def release_all_lockers(
         commit=False,
     )
     notification_service = NotificationService(db)
+    notifications = []
     for assignment in active_assignments:
         student_user = users_by_student_id.get(assignment.student_id)
         if not student_user or not assignment.locker:
             continue
-        await notification_service.create(
-            user_id=student_user.id,
-            title="Locker released",
-            message=f"Locker {assignment.locker.number} has been released.",
-            type="warning",
-            commit=False,
+        notifications.append({
+            "user_id": student_user.id,
+            "title": "Locker released",
+            "message": f"Locker {assignment.locker.number} has been released.",
+            "type": "warning",
+        })
+        background_tasks.add_task(
+            send_release_email,
+            student_user.email,
+            assignment.locker.number,
         )
-        try:
-            send_release_email(student_user.email, assignment.locker.number)
-        except Exception:
-            pass
+    await notification_service.create_many(notifications)
 
     await db.commit()
     await manager.broadcast("assignment_change")

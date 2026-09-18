@@ -4,11 +4,14 @@ import csv
 import io
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, status
+from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_admin, get_current_staff, get_db
 from app.core.websocket import manager
 from app.models.user import User
+from app.models.locker import Locker
 from app.schemas.locker import LockerCreate, LockerRead, LockerUpdate
 from app.services.audit import AuditLogService
 from app.services.locker import LockerService
@@ -185,6 +188,8 @@ async def import_lockers_csv(
     errors: list[str] = []
     seen_numbers: set[str] = set()
     service = LockerService(db)
+    existing_result = await db.execute(select(Locker.number))
+    existing_numbers = {number for (number,) in existing_result}
 
     for i, row in enumerate(reader, start=2):
         try:
@@ -194,8 +199,7 @@ async def import_lockers_csv(
                 skipped += 1
                 continue
 
-            existing = await service.get_by_number(number)
-            if existing:
+            if number in existing_numbers:
                 errors.append(f"Row {i}: locker '{number}' already exists")
                 skipped += 1
                 continue
@@ -204,6 +208,7 @@ async def import_lockers_csv(
                 skipped += 1
                 continue
             seen_numbers.add(number)
+            existing_numbers.add(number)
 
             data = LockerCreate(
                 number=number,
@@ -215,12 +220,20 @@ async def import_lockers_csv(
             )
             await service.create(data, commit=False, flush=False)
             created += 1
-        except Exception as e:
+        except SQLAlchemyError as e:
+            await db.rollback()
+            errors.append(f"Row {i}: database error: {e}")
+            skipped += 1
+        except (ValueError, TypeError) as e:
             errors.append(f"Row {i}: {str(e)}")
             skipped += 1
 
     if created > 0:
-        await db.commit()
+        try:
+            await db.commit()
+        except SQLAlchemyError as e:
+            await db.rollback()
+            raise HTTPException(status_code=400, detail=f"Locker import failed: {e}") from e
         await AuditLogService(db).create(
             actor_id=current_admin.id,
             action="import",

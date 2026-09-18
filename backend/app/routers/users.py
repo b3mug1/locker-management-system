@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_admin, get_db
@@ -37,6 +37,7 @@ async def list_users(
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_user(
     data: UserCreate,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     _admin: User = Depends(get_current_admin),
 ):
@@ -52,11 +53,9 @@ async def create_user(
     await db.refresh(user)
     # Send credentials to the user's email
     email_sent = False
-    try:
-        send_credentials_email(user.email, data.password)
+    if user.email:
+        background_tasks.add_task(send_credentials_email, user.email, data.password)
         email_sent = True
-    except Exception:
-        pass
     return {
         "id": user.id,
         "email": user.email,
