@@ -12,18 +12,28 @@ const generateSecurePassword = (length = 10) => {
   const digits = '23456789';
   const symbols = '!@#$%&*';
 
+  const randomIndex = (max) => {
+    const values = new Uint32Array(1);
+    crypto.getRandomValues(values);
+    return values[0] % max;
+  };
   let pwd = '';
-  pwd += upper.charAt(Math.floor(Math.random() * upper.length));
-  pwd += lower.charAt(Math.floor(Math.random() * lower.length));
-  pwd += digits.charAt(Math.floor(Math.random() * digits.length));
-  pwd += symbols.charAt(Math.floor(Math.random() * symbols.length));
+  pwd += upper.charAt(randomIndex(upper.length));
+  pwd += lower.charAt(randomIndex(lower.length));
+  pwd += digits.charAt(randomIndex(digits.length));
+  pwd += symbols.charAt(randomIndex(symbols.length));
 
   const all = lower + upper + digits + symbols;
   for (let i = 0; i < length - 4; i++) {
-    pwd += all.charAt(Math.floor(Math.random() * all.length));
+    pwd += all.charAt(randomIndex(all.length));
   }
 
-  return pwd.split('').sort(() => 0.5 - Math.random()).join('');
+  const chars = pwd.split('');
+  for (let i = chars.length - 1; i > 0; i -= 1) {
+    const j = randomIndex(i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+  return chars.join('');
 };
 
 function UsersPage() {

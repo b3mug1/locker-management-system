@@ -19,9 +19,12 @@ function StudentsPage() {
   const [pageSize, setPageSize] = useState(10);
   const [confirmModal, setConfirmModal] = useState({ open: false, title: '', message: '', onConfirm: null });
   const fileInputRef = useRef(null);
+  const fetchSequenceRef = useRef(0);
   const modalRef = useRef(null);
   const overlayRef = useRef(null);
   const [importStatus, setImportStatus] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   const [filterGroup, setFilterGroup] = useState('');
   const [filterCourse, setFilterCourse] = useState('');
@@ -54,9 +57,15 @@ function StudentsPage() {
   };
 
   const fetchStudents = useCallback(async () => {
-    try { const res = await getStudents(0, 10000); setStudents(res.data); }
-    catch { setError(t('students_failed_load')); }
-    finally { setLoading(false); }
+    const sequence = ++fetchSequenceRef.current;
+    try {
+      const res = await getStudents(0, 10000);
+      if (sequence === fetchSequenceRef.current) setStudents(res.data);
+    } catch {
+      if (sequence === fetchSequenceRef.current) setError(t('students_failed_load'));
+    } finally {
+      if (sequence === fetchSequenceRef.current) setLoading(false);
+    }
   }, [t]);
 
   useEffect(() => { fetchStudents(); }, [fetchStudents]);
@@ -127,11 +136,14 @@ function StudentsPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault(); setError('');
+    if (submitting) return;
+    setSubmitting(true);
     try {
       if (editingId) { await updateStudent(editingId, form); }
       else { await createStudent(form); }
       setForm({ full_name: '', group: '', barcode: '', course: 1, inclusive_status: 'none' }); setShowForm(false); setEditingId(null); fetchStudents();
     } catch (err) { setError(err.response?.data?.detail || t('students_op_failed')); }
+    finally { setSubmitting(false); }
   };
 
   const handleEdit = (s) => { setForm({ full_name: s.full_name, group: s.group, barcode: s.barcode, course: s.course, inclusive_status: s.inclusive_status || 'none' }); setEditingId(s.id); setShowForm(true); };
@@ -151,9 +163,12 @@ function StudentsPage() {
 
   const handleCSVImport = async (e) => {
     const file = e.target.files[0]; if (!file) return;
+    if (importing) return;
     setImportStatus(null); setError('');
+    setImporting(true);
     try { const res = await importStudentsCSV(file); setImportStatus(res.data); fetchStudents(); }
     catch (err) { setError(err.response?.data?.detail || t('students_csv_failed')); }
+    finally { setImporting(false); }
     e.target.value = '';
   };
 
@@ -176,7 +191,7 @@ function StudentsPage() {
               {t('students_delete_selected', { count: selectedIds.size })}
             </button>
           )}
-          <button className="btn btn-outline" onClick={() => fileInputRef.current?.click()}>{t('students_import_csv')}</button>
+          <button className="btn btn-outline" onClick={() => fileInputRef.current?.click()} disabled={importing}>{t('students_import_csv')}</button>
           <input type="file" accept=".csv" ref={fileInputRef} style={{ display: 'none' }} onChange={handleCSVImport} />
           <button className="btn btn-primary" onClick={() => { setEditingId(null); setForm({ full_name: '', group: '', barcode: '', course: 1, inclusive_status: 'none' }); setShowForm(true); }}>
             + {t('students_add')}
@@ -241,7 +256,7 @@ function StudentsPage() {
               </div>
               <div className="modal-actions">
                 <button className="btn btn-outline" type="button" onClick={handleCancel}>{t('btn_cancel')}</button>
-                <button className="btn btn-primary" type="submit">{editingId ? t('btn_update') : t('btn_create')}</button>
+                <button className="btn btn-primary" type="submit" disabled={submitting}>{editingId ? t('btn_update') : t('btn_create')}</button>
               </div>
             </form>
           </div>

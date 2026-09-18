@@ -4,6 +4,7 @@ import { createIncident, getIncidents } from '../api/incidents';
 import { useLanguage } from '../context/LanguageContext';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { animateStagger, animateModalOpen } from '../utils/animations';
+import { readImageAsDataUrl } from '../utils/file';
 
 function UserDashboard() {
   const { t, lang } = useLanguage();
@@ -73,14 +74,17 @@ function UserDashboard() {
     incident_change: fetchData,
   });
 
-  const handleImageUpload = (e) => {
+  const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (uploadEvent) => {
-      setReportForm(prev => ({ ...prev, image_url: uploadEvent.target.result }));
-    };
-    reader.readAsDataURL(file);
+    try {
+      const imageUrl = await readImageAsDataUrl(file);
+      setReportForm(prev => ({ ...prev, image_url: imageUrl }));
+    } catch {
+      setError(t('incident_photo_invalid'));
+    } finally {
+      e.target.value = '';
+    }
   };
 
   const handleReportSubmit = async (e) => {
