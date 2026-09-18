@@ -28,11 +28,18 @@ function NotificationsPage() {
   const { t } = useLanguage();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   const load = async () => {
-    const res = await getNotifications();
-    setNotifications(res.data);
-    setLoading(false);
+    try {
+      const res = await getNotifications();
+      setNotifications(res.data);
+      setError('');
+    } catch {
+      setError(t('notifications_failed_load'));
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { load(); }, []);
@@ -57,6 +64,7 @@ function NotificationsPage() {
         <h1>{t('notifications_title')}</h1>
         <button className="btn btn-outline" onClick={markAll}>{t('notifications_mark_all_read')}</button>
       </div>
+      {error && <div className="alert alert-error" role="alert">{error}</div>}
 
       <div className="dashboard-card">
         <div className="dash-activity-list">

@@ -51,8 +51,9 @@ function ChangePasswordPage() {
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label>{t('pwd_current')}</label>
+            <label htmlFor="current-password">{t('pwd_current')}</label>
             <input
+              id="current-password"
               type="password"
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
@@ -61,8 +62,9 @@ function ChangePasswordPage() {
             />
           </div>
           <div className="form-group">
-            <label>{t('pwd_new')}</label>
+            <label htmlFor="new-password">{t('pwd_new')}</label>
             <input
+              id="new-password"
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
@@ -72,8 +74,9 @@ function ChangePasswordPage() {
             />
           </div>
           <div className="form-group">
-            <label>{t('pwd_confirm')}</label>
+            <label htmlFor="confirm-password">{t('pwd_confirm')}</label>
             <input
+              id="confirm-password"
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}

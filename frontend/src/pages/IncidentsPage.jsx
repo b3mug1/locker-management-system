@@ -5,6 +5,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { useWebSocket } from '../hooks/useWebSocket';
 import ConfirmModal from '../components/ConfirmModal';
 import { animateStagger, animateModalOpen } from '../utils/animations';
+import { readImageAsDataUrl } from '../utils/file';
 
 function IncidentsPage() {
   const { t, lang } = useLanguage();
@@ -22,6 +23,7 @@ function IncidentsPage() {
   const [assignModal, setAssignModal] = useState({ open: false, incident: null, technicianId: '' });
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const fileInputRef = useRef(null);
+  const loadSequenceRef = useRef(0);
   const assignModalRef = useRef(null);
   const assignOverlayRef = useRef(null);
 
@@ -69,19 +71,21 @@ function IncidentsPage() {
   ], [t]);
 
   const load = useCallback(async () => {
+    const sequence = ++loadSequenceRef.current;
     try {
       const [iRes, lRes, tRes] = await Promise.all([
         getIncidents(),
         getLockers(0, 10000),
         getTechnicians().catch(() => ({ data: [] })),
       ]);
+      if (sequence !== loadSequenceRef.current) return;
       setIncidents(iRes.data);
       setLockers(lRes.data);
       setTechnicians(tRes.data || []);
     } catch {
-      setError(t('incidents_failed_load'));
+      if (sequence === loadSequenceRef.current) setError(t('incidents_failed_load'));
     } finally {
-      setLoading(false);
+      if (sequence === loadSequenceRef.current) setLoading(false);
     }
   }, [t]);
 
@@ -120,14 +124,17 @@ function IncidentsPage() {
     setShowForm(false);
   };
 
-  const handleImageUpload = (e) => {
+  const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (uploadEvent) => {
-      setForm(prev => ({ ...prev, image_url: uploadEvent.target.result }));
-    };
-    reader.readAsDataURL(file);
+    try {
+      const imageUrl = await readImageAsDataUrl(file);
+      setForm(prev => ({ ...prev, image_url: imageUrl }));
+    } catch {
+      setError(t('incident_photo_invalid'));
+    } finally {
+      e.target.value = '';
+    }
   };
 
   const submit = async (e) => {
