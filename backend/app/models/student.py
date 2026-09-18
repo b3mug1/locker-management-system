@@ -21,5 +21,5 @@ class Student(Base):
     # AI Allocation Tier 3: academic GPA (0.00 - 4.00)
     gpa: Mapped[float] = mapped_column(default=3.0, nullable=False)
 
-    assignments = relationship("Assignment", back_populates="student", lazy="selectin", cascade="all, delete-orphan", passive_deletes=True)
+    assignments = relationship("Assignment", back_populates="student", lazy="raise", cascade="all, delete-orphan", passive_deletes=True)
     user = relationship("User", back_populates="student", uselist=False, lazy="selectin")

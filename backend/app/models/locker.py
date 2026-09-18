@@ -17,4 +17,4 @@ class Locker(Base):
     floor: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")  # active / inactive
 
-    assignments = relationship("Assignment", back_populates="locker", lazy="selectin", cascade="all, delete-orphan", passive_deletes=True)
+    assignments = relationship("Assignment", back_populates="locker", lazy="raise", cascade="all, delete-orphan", passive_deletes=True)
