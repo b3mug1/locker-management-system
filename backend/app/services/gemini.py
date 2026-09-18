@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import re
 import logging
+import asyncio
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -380,7 +381,8 @@ SYSTEM SNAPSHOT:
     contents.append(types.Content(role="user", parts=[types.Part(text=full_message)]))
 
     try:
-        response = client.models.generate_content(
+        response = await asyncio.to_thread(
+            client.models.generate_content,
             model=model_name,
             contents=contents,
             config=types.GenerateContentConfig(

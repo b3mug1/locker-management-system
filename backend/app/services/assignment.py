@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.assignment import Assignment
@@ -25,21 +25,22 @@ class AssignmentService:
 
     async def get_all(self, skip: int = 0, limit: int = 200) -> list[dict]:
         result = await self.db.execute(
-            select(Assignment).order_by(Assignment.id.desc()).offset(skip).limit(limit)
+            select(
+                Assignment.id,
+                Assignment.student_id,
+                Assignment.locker_id,
+                Assignment.assigned_at,
+                Assignment.released_at,
+                Student.full_name.label("student_name"),
+                Locker.number.label("locker_number"),
+            )
+            .join(Student, Student.id == Assignment.student_id)
+            .join(Locker, Locker.id == Assignment.locker_id)
+            .order_by(Assignment.id.desc())
+            .offset(skip)
+            .limit(limit)
         )
-        assignments = list(result.scalars().all())
-        data = []
-        for a in assignments:
-            data.append({
-                "id": a.id,
-                "student_id": a.student_id,
-                "locker_id": a.locker_id,
-                "assigned_at": a.assigned_at,
-                "released_at": a.released_at,
-                "student_name": a.student.full_name if a.student else None,
-                "locker_number": a.locker.number if a.locker else None,
-            })
-        return data
+        return [dict(row._mapping) for row in result]
 
     async def get_active_by_student(self, student_id: int) -> Assignment | None:
         result = await self.db.execute(
@@ -59,41 +60,34 @@ class AssignmentService:
         )
         return list(result.scalars().all())
 
-    async def get_by_user_email(self, email: str, skip: int = 0, limit: int = 100) -> list[dict]:
-        """Get assignments for the student linked to this user account."""
-        from app.models.user import User
-        user_result = await self.db.execute(
-            select(User).where(User.email == email)
-        )
-        user = user_result.scalar_one_or_none()
-        if not user or not user.student_id:
+    async def get_by_student_id(self, student_id: int | None, skip: int = 0, limit: int = 100) -> list[dict]:
+        """Get assignments for a linked student without reloading the user."""
+        if not student_id:
             return []
 
         result = await self.db.execute(
-            select(Assignment)
-            .where(Assignment.student_id == user.student_id)
+            select(
+                Assignment.id,
+                Assignment.student_id,
+                Assignment.locker_id,
+                Assignment.assigned_at,
+                Assignment.released_at,
+                Student.full_name.label("student_name"),
+                Locker.number.label("locker_number"),
+            )
+            .join(Student, Student.id == Assignment.student_id)
+            .join(Locker, Locker.id == Assignment.locker_id)
+            .where(Assignment.student_id == student_id)
             .order_by(Assignment.id.desc())
             .offset(skip)
             .limit(limit)
         )
-        assignments = list(result.scalars().all())
-        data = []
-        for a in assignments:
-            data.append({
-                "id": a.id,
-                "student_id": a.student_id,
-                "locker_id": a.locker_id,
-                "assigned_at": a.assigned_at,
-                "released_at": a.released_at,
-                "student_name": a.student.full_name if a.student else None,
-                "locker_number": a.locker.number if a.locker else None,
-            })
-        return data
+        return [dict(row._mapping) for row in result]
 
     async def assign(self, data: AssignmentCreate, *, commit: bool = True) -> Assignment:
         # Verify student exists
         student_result = await self.db.execute(
-            select(Student).where(Student.id == data.student_id)
+            select(Student).where(Student.id == data.student_id).with_for_update()
         )
         student = student_result.scalar_one_or_none()
         if not student:
@@ -199,15 +193,13 @@ class AssignmentService:
         )
         return result.scalar_one()
 
-    async def release_all(self, active_assignments: list[Assignment] | None = None) -> int:
+    async def release_all(self) -> int:
         """Release all active assignments. Returns the number of released assignments."""
-        if active_assignments is None:
-            result = await self.db.execute(
-                select(Assignment).where(Assignment.released_at.is_(None))
-            )
-            active_assignments = list(result.scalars().all())
         now = datetime.now(timezone.utc)
-        for assignment in active_assignments:
-            assignment.released_at = now
-        await self.db.commit()
-        return len(active_assignments)
+        result = await self.db.execute(
+            update(Assignment)
+            .where(Assignment.released_at.is_(None))
+            .values(released_at=now)
+        )
+        await self.db.flush()
+        return result.rowcount

@@ -28,6 +28,20 @@ class NotificationService:
             await self.db.flush()
         return notification
 
+    async def create_many(self, notifications: list[dict]) -> None:
+        """Stage notifications together and flush them with one unit of work."""
+        self.db.add_all([
+            Notification(
+                user_id=item["user_id"],
+                title=item["title"],
+                message=item["message"],
+                type=item.get("type", "info"),
+            )
+            for item in notifications
+        ])
+        if notifications:
+            await self.db.flush()
+
     async def get_for_user(self, user_id: int, skip: int = 0, limit: int = 100) -> list[Notification]:
         result = await self.db.execute(
             select(Notification)

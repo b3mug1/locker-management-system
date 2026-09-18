@@ -2,10 +2,14 @@
 from __future__ import annotations
 
 import smtplib
+from html import escape
+import logging
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 def _send(to_email: str, subject: str, html: str) -> None:
@@ -38,9 +42,11 @@ def _send(to_email: str, subject: str, html: str) -> None:
 def send_credentials_email(to_email: str, password: str) -> bool:
     """Send login credentials to a newly created user."""
     if not settings.SMTP_USER:
-        # No SMTP configured — print to console in dev
-        print(f"[DEV] Credentials for {to_email}: password={password}")
+        logger.info("SMTP is not configured; credentials email was not sent to %s", to_email)
         return True
+
+    safe_email = escape(to_email)
+    safe_password = escape(password)
 
     html = f"""
     <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:2rem">
@@ -55,8 +61,8 @@ def send_credentials_email(to_email: str, password: str) -> bool:
       </p>
       <div style="background:#f4f6f9;border:1px solid #e5e7eb;border-radius:8px;
                   padding:1.25rem;margin:1.5rem 0">
-        <p style="margin:0 0 0.5rem;color:#374151"><strong>Email:</strong> {to_email}</p>
-        <p style="margin:0;color:#374151"><strong>Password:</strong> {password}</p>
+        <p style="margin:0 0 0.5rem;color:#374151"><strong>Email:</strong> {safe_email}</p>
+        <p style="margin:0;color:#374151"><strong>Password:</strong> {safe_password}</p>
       </div>
       <p style="color:#6b7280;font-size:0.875rem">
         Please keep your credentials safe and change your password after first login.
@@ -67,18 +73,20 @@ def send_credentials_email(to_email: str, password: str) -> bool:
 
     try:
         _send(to_email, "AITU Locker — Your Account Credentials", html)
-        print(f"[SMTP] Credentials sent to {to_email}")
+        logger.info("Credentials email sent to %s", to_email)
         return True
     except Exception as exc:
-        print(f"[SMTP Error] Failed to send to {to_email}: {exc}")
+        logger.exception("Failed to send credentials email to %s", to_email)
         raise RuntimeError(f"Failed to send credentials email: {exc}") from exc
 
 
 def send_assignment_email(to_email: str, locker_number: str, floor: int) -> bool:
     """Notify a user that a locker has been assigned to them."""
     if not settings.SMTP_USER:
-        print(f"[DEV] Assignment notification for {to_email}: locker={locker_number}")
+        logger.info("SMTP is not configured; assignment email was not sent to %s", to_email)
         return True
+
+    safe_locker_number = escape(locker_number)
 
     html = f"""
     <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:2rem">
@@ -92,7 +100,7 @@ def send_assignment_email(to_email: str, locker_number: str, floor: int) -> bool
       </p>
       <div style="background:#f4f6f9;border:1px solid #e5e7eb;border-radius:8px;
                   padding:1.25rem;margin:1.5rem 0">
-        <p style="margin:0 0 0.5rem;color:#374151"><strong>Locker number:</strong> {locker_number}</p>
+        <p style="margin:0 0 0.5rem;color:#374151"><strong>Locker number:</strong> {safe_locker_number}</p>
         <p style="margin:0;color:#374151"><strong>Floor:</strong> {floor}</p>
       </div>
       <p style="color:#6b7280;font-size:0.875rem">
@@ -103,18 +111,20 @@ def send_assignment_email(to_email: str, locker_number: str, floor: int) -> bool
 
     try:
         _send(to_email, "AITU Locker System — Locker Assigned", html)
-        print(f"[SMTP] Assignment notification sent to {to_email}")
+        logger.info("Assignment email sent to %s", to_email)
         return True
     except Exception as exc:
-        print(f"[SMTP Error] Failed to send to {to_email}: {exc}")
+        logger.exception("Failed to send assignment email to %s", to_email)
         raise RuntimeError(f"Failed to send assignment email: {exc}") from exc
 
 
 def send_release_email(to_email: str, locker_number: str) -> bool:
     """Notify a user that their locker has been released."""
     if not settings.SMTP_USER:
-        print(f"[DEV] Release notification for {to_email}: locker={locker_number}")
+        logger.info("SMTP is not configured; release email was not sent to %s", to_email)
         return True
+
+    safe_locker_number = escape(locker_number)
 
     html = f"""
     <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:2rem">
@@ -123,7 +133,7 @@ def send_release_email(to_email: str, locker_number: str) -> bool:
       </h2>
       <p style="color:#374151">Hello,</p>
       <p style="color:#374151">
-        Your locker <strong>{locker_number}</strong> has been released in the
+        Your locker <strong>{safe_locker_number}</strong> has been released in the
         <strong>AITU Locker</strong>.
       </p>
       <p style="color:#6b7280;font-size:0.875rem">
@@ -134,8 +144,8 @@ def send_release_email(to_email: str, locker_number: str) -> bool:
 
     try:
         _send(to_email, "AITU Locker System — Locker Released", html)
-        print(f"[SMTP] Release notification sent to {to_email}")
+        logger.info("Release email sent to %s", to_email)
         return True
     except Exception as exc:
-        print(f"[SMTP Error] Failed to send to {to_email}: {exc}")
+        logger.exception("Failed to send release email to %s", to_email)
         raise RuntimeError(f"Failed to send release email: {exc}") from exc
