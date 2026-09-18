@@ -1,23 +1,23 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
-import LoginPage from './pages/LoginPage';
-import WelcomePage from './pages/WelcomePage';
-import AdminDashboard from './pages/AdminDashboard';
-import UsersPage from './pages/UsersPage';
-import StudentsPage from './pages/StudentsPage';
-import LockersPage from './pages/LockersPage';
-import AssignmentsPage from './pages/AssignmentsPage';
-import UserDashboard from './pages/UserDashboard';
-import TechnicianDashboard from './pages/TechnicianDashboard';
-import ChangePasswordPage from './pages/ChangePasswordPage';
-import AnalyticsPage from './pages/AnalyticsPage';
-import IncidentsPage from './pages/IncidentsPage';
-import AuditLogPage from './pages/AuditLogPage';
-import NotificationsPage from './pages/NotificationsPage';
-import NotFoundPage from './pages/NotFoundPage';
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const WelcomePage = lazy(() => import('./pages/WelcomePage'));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const UsersPage = lazy(() => import('./pages/UsersPage'));
+const StudentsPage = lazy(() => import('./pages/StudentsPage'));
+const LockersPage = lazy(() => import('./pages/LockersPage'));
+const AssignmentsPage = lazy(() => import('./pages/AssignmentsPage'));
+const UserDashboard = lazy(() => import('./pages/UserDashboard'));
+const TechnicianDashboard = lazy(() => import('./pages/TechnicianDashboard'));
+const ChangePasswordPage = lazy(() => import('./pages/ChangePasswordPage'));
+const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'));
+const IncidentsPage = lazy(() => import('./pages/IncidentsPage'));
+const AuditLogPage = lazy(() => import('./pages/AuditLogPage'));
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
 function App() {
   const { user } = useAuth();
@@ -29,7 +29,8 @@ function App() {
   };
 
   return (
-    <Routes>
+    <Suspense fallback={<div className="loading">Loading...</div>}>
+      <Routes>
       {/* Public routes */}
       <Route path="/welcome" element={<WelcomePage />} />
       <Route path="/login" element={!user ? <LoginPage /> : <Navigate to="/dashboard" />} />
@@ -55,7 +56,8 @@ function App() {
       {/* Root: welcome for guests, dashboard for logged-in */}
       <Route path="/" element={user ? <Navigate to="/dashboard" /> : <Navigate to="/welcome" />} />
       <Route path="*" element={<NotFoundPage />} />
-    </Routes>
+      </Routes>
+    </Suspense>
   );
 }
 
