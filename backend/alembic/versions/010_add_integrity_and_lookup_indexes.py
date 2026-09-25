@@ -1,6 +1,6 @@
 """add active assignment constraint and missing lookup/schema columns
 
-Revision ID: 010_add_integrity_and_lookup_indexes
+Revision ID: 010_integrity_lookup
 Revises: 009_add_assignment_indexes
 """
 from typing import Sequence, Union
@@ -9,13 +9,19 @@ import sqlalchemy as sa
 from alembic import op
 
 
-revision: str = "010_add_integrity_and_lookup_indexes"
+revision: str = "010_integrity_lookup"
 down_revision: Union[str, None] = "009_add_assignment_indexes"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    # Ensure alembic_version table can hold longer version strings if needed in future
+    try:
+        op.execute("ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(128)")
+    except Exception:
+        pass
+
     op.add_column("students", sa.Column("activity_score", sa.Integer(), nullable=False, server_default="50"))
     op.add_column("students", sa.Column("gpa", sa.Float(), nullable=False, server_default="3.0"))
 
