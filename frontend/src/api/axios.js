@@ -1,6 +1,12 @@
 import axios from 'axios';
 
-const rawApiUrl = import.meta.env.VITE_API_URL || '/api/v1';
+let rawApiUrl = import.meta.env.VITE_API_URL;
+
+// Always resolve to the live production Render backend
+if (!rawApiUrl || rawApiUrl.includes('locker-management-backend') || rawApiUrl === '/api/v1') {
+  rawApiUrl = 'https://locker-backend-4e74.onrender.com';
+}
+
 const API_URL = rawApiUrl.endsWith('/api/v1')
   ? rawApiUrl
   : `${rawApiUrl.replace(/\/$/, '')}/api/v1`;

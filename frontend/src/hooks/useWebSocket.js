@@ -1,7 +1,11 @@
 import { useEffect, useRef, useCallback } from 'react';
 
 const getWsUrl = () => {
-  const apiUrl = import.meta.env.VITE_API_URL;
+  let apiUrl = import.meta.env.VITE_API_URL || 'https://locker-backend-4e74.onrender.com';
+  if (apiUrl.includes('locker-management-backend')) {
+    apiUrl = 'https://locker-backend-4e74.onrender.com';
+  }
+
   if (apiUrl && apiUrl.startsWith('http')) {
     try {
       const url = new URL(apiUrl);
