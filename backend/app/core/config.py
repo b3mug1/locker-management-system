@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from typing import List
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -55,6 +56,21 @@ class Settings(BaseSettings):
     # Gemini AI
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-3.7-flash"
+
+    @model_validator(mode="after")
+    def assemble_db_urls(self) -> "Settings":
+        url = self.DATABASE_URL
+        if url.startswith("postgres://"):
+            self.DATABASE_URL = url.replace("postgres://", "postgresql+asyncpg://", 1)
+        elif url.startswith("postgresql://") and not url.startswith("postgresql+asyncpg://"):
+            self.DATABASE_URL = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+        sync_url = self.DATABASE_URL_SYNC
+        if not sync_url or ("db:5432" in sync_url and "db:5432" not in self.DATABASE_URL):
+            self.DATABASE_URL_SYNC = self.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://", 1)
+        elif sync_url.startswith("postgres://"):
+            self.DATABASE_URL_SYNC = sync_url.replace("postgres://", "postgresql://", 1)
+        return self
 
     @property
     def cors_origins(self) -> List[str]:

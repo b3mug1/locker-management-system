@@ -1,6 +1,20 @@
 import { useEffect, useRef, useCallback } from 'react';
 
-const WS_URL = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws`;
+const getWsUrl = () => {
+  const apiUrl = import.meta.env.VITE_API_URL;
+  if (apiUrl && apiUrl.startsWith('http')) {
+    try {
+      const url = new URL(apiUrl);
+      const protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+      return `${protocol}//${url.host}/ws`;
+    } catch {
+      // fallback if invalid URL
+    }
+  }
+  return `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws`;
+};
+
+const WS_URL = getWsUrl();
 
 /**
  * Custom hook for WebSocket real-time updates.
