@@ -23,6 +23,10 @@ services:
         value: admin@locker.com
       - key: FIRST_ADMIN_PASSWORD
         value: admin123
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
 
   # 2. Frontend SPA (React + Vite)
   - type: web
